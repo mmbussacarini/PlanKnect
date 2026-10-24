@@ -658,3 +658,14 @@ Respeitar o compartilhamento do dispositivo (Deals só se a TV tiver permissão;
 **3. Tarefa** (`GET /tasks/:id`) — a TV já usa `url` (QR "abrir no celular"), `subtasks`, `lastComment`, `status` (in_progress/review). Útil: `created_at`, `updated_at`, `comments_count`, `blocked_by`.
 
 **4. Listas** — a TV passou a usar `POST /lists/:id/items { items: [{ title }] }` (até 20) e `POST /lists/:id/items/:itemId { done }`.
+
+## 23. Agenda individual (Wesley, Lara…) — o que falta no `/dashboard` (verificado 24/10)
+
+A TV já monta a agenda por pessoa, mas hoje **nenhum dos 35 eventos traz `members`** (todos vêm `[]`) e nenhum é das crianças. Só a Sofia tem `memberDestinations`. Com isso a TV não consegue mostrar a semana do Wesley ou da Lara. Pedidos:
+
+1. **`events[].members`**: ids das pessoas do evento (`familyMemberId` e/ou `userId`). Ex.: "Natação" → `[<id Wesley>, <id Lara>]`. Pode vir do participante do Google Calendar, do responsável da tarefa ou do quadro pessoal.
+2. **Calendários das crianças**: compartilhar com a TV os calendários/quadros onde estão os compromissos delas (escola, esportes, médico) e criar `memberDestinations` para Wesley e Lara.
+3. **Período**: hoje os eventos vão só de 25/10 a 01/11. Enviar **14 dias** (semana atual + próxima) para a TV mostrar "próxima semana".
+4. Tarefas com `assignee` = id do membro (hoje 0 de 60 têm responsável que bata com `members[].id`).
+
+**Deals:** a TV já lê o formato novo (`name`, `stageLabel`, `priority`, `temperature`, `temperatureAi`, `nextAction(Due)`, `outcome`, `values[]`). Esta TV recebe 403 — falta marcar "Mostrar pipeline de deals" para ela.

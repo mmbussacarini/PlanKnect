@@ -9,7 +9,7 @@ window.PK = PK;
 PK.deals = (function () {
   var U = PK.util, I = PK.icons, esc = U.esc;
   var STAGES = ['Prospecção', 'Proposta', 'Negociação', 'Due diligence', 'Fechamento'];
-  var cache = null, unavailable = false, loading = null;
+  var cache = null, unavailable = false, forbidden = false, loading = null;
 
   function d(days, h) { var x = U.addDays(U.startOfDay(new Date()), days); x.setHours(h || 10, 0, 0, 0); return x.toISOString(); }
   var DEMO = [
@@ -31,9 +31,21 @@ PK.deals = (function () {
       documents: [{ name: 'Data room índice.pdf', kind: 'pdf' }, { name: 'Projeções 5 anos.xlsx', kind: 'sheet' }], contacts: [{ name: 'Luís Martins', role: 'Sócio', company: 'Saint Luiger' }], activity: [{ at: d(-2, 18), text: 'Data room aberto para auditoria', by: 'Marcelo' }] }
   ];
 
+  // GET /deals do PlanKnect: name, project, stageLabel, priority p1–p3, temperature, temperatureAi, nextAction(Due), outcome, values[]
+  function fromApi(x) {
+    var vals = (x.values || []).map(function (v) { return { amount: +(v.amount != null ? v.amount : v.value != null ? v.value : v.total) || 0, currency: v.currency || '', period: v.period || v.billingPeriod || v.billing_period || v.interval || '' }; });
+    var y = { id: x.id, title: x.name || x.title, company: x.project || x.company || '', project: x.project || '', projectId: x.projectId, stage: x.stageLabel || x.stage || 'Sem estágio',
+      priority: x.priority, temperature: x.temperature, ai: x.temperatureAi, outcome: x.outcome, values: vals, url: x.url,
+      probability: x.temperatureAi != null ? x.temperatureAi / 100 : (x.probability || 0),
+      next_step: x.nextAction ? { text: x.nextAction, due: x.nextActionDue } : (x.next_step || null), last_activity_at: x.lastActivityAt || x.updatedAt || x.last_activity_at,
+      documents: x.documents, contacts: x.contacts, activity: x.activity };
+    if (vals.length) { y.value = vals[0].amount; y.currency = vals[0].currency; y.period = vals[0].period; }
+    return y;
+  }
   function norm(x) {
     x.value = +x.value || 0; x.probability = x.probability > 1 ? x.probability / 100 : (+x.probability || 0);
     x.stages = x.stages && x.stages.length ? x.stages : STAGES;
+    x.values = x.values && x.values.length ? x.values : [{ amount: x.value, currency: x.currency, period: x.period || '' }];
     x.next = x.next_step || x.nextStep || null; if (x.next && x.next.due) x.next.due = U.toDate(x.next.due);
     x.close = U.toDate(x.expected_close || x.expectedClose); x.last = U.toDate(x.last_activity_at || x.lastActivityAt);
     return x;
@@ -42,16 +54,27 @@ PK.deals = (function () {
     if (cache && !force) return Promise.resolve(cache);
     if (PK.data.mode() !== 'live') { cache = DEMO.map(function (x) { return norm(JSON.parse(JSON.stringify(x))); }); return Promise.resolve(cache); }
     if (loading) return loading;
-    loading = PK.api.deals().then(function (r) { loading = null; unavailable = false; cache = (r.deals || r.items || []).map(norm); return cache; })
-      .catch(function (e) { loading = null; unavailable = /404|405|not_found|method/.test(e.message); cache = []; return cache; });
+    loading = PK.api.deals().then(function (r) {
+      loading = null; unavailable = forbidden = false;
+      var list = (r.deals || r.items || []).map(fromApi).map(norm), order = [];
+      list.forEach(function (x) { if (order.indexOf(x.stage) < 0) order.push(x.stage); }); // estágios na ordem do PlanKnect
+      list.forEach(function (x) { x.stages = order; });
+      cache = list; return cache;
+    }).catch(function (e) { loading = null; forbidden = /403|forbidden/.test(e.message); unavailable = /404|405|not_found|method/.test(e.message); cache = []; return cache; });
     return loading;
   }
   function money(v, cur) {
-    var s = v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', ',') + ' mi' : v >= 1e3 ? Math.round(v / 1e3) + ' mil' : String(Math.round(v));
+    var s = v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', ',') + ' mi' : v >= 1e4 ? Math.round(v / 1e3) + ' mil' : String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return ({ USD: 'US$ ', AUD: 'A$ ', EUR: '€ ', BRL: 'R$ ', GBP: '£ ' }[cur] || (cur ? cur + ' ' : '')) + s;
   }
+  var PER = { month: '/mês', monthly: '/mês', year: '/ano', yearly: '/ano', annual: '/ano', annually: '/ano', week: '/sem', weekly: '/sem', quarter: '/tri', quarterly: '/tri', one_time: '', once: '', onetime: '' };
+  function per(p) { return p ? (PER[String(p).toLowerCase()] != null ? PER[String(p).toLowerCase()] : '/' + p) : ''; }
+  function vals(x) { return x.values.map(function (v) { return money(v.amount, v.currency) + per(v.period); }).join(' + '); }
+  var TEMP = { hot: ['Quente', 'hot'], warm: ['Morno', 'warm'], cold: ['Frio', 'cold'] };
+  function temp(x) { var t = TEMP[String(x.temperature || '').toLowerCase()]; return t || x.ai != null ? '<span class="dl-temp ' + (t ? t[1] : '') + '">' + (t ? t[0] : 'IA') + (x.ai != null ? ' · ' + Math.round(x.ai) : '') + '</span>' : ''; }
+  function prio(x) { return x.priority ? '<span class="dl-pr ' + String(x.priority).toLowerCase() + '">' + String(x.priority).toUpperCase() + '</span>' : ''; }
   function totals(list) {
-    var by = {}; list.forEach(function (x) { var c = x.currency || '—'; by[c] = by[c] || { v: 0, w: 0 }; by[c].v += x.value; by[c].w += x.value * x.probability; });
+    var by = {}; list.forEach(function (x) { x.values.forEach(function (v) { var c = (v.currency || '—') + '|' + (v.period || ''); by[c] = by[c] || { v: 0, w: 0 }; by[c].v += v.amount; by[c].w += v.amount * x.probability; }); });
     return by;
   }
   function soonest(list) { return list.filter(function (x) { return x.next && x.next.due; }).sort(function (a, b) { return a.next.due - b.next.due; }); }
@@ -60,15 +83,15 @@ PK.deals = (function () {
   function view(state) {
     var list = cache || [];
     if (!cache) { load().then(function () { if (PK.app.refreshView) PK.app.refreshView('deals'); }); return '<div class="dl-empty"><span class="spin"></span> Abrindo o Deal Room…</div>'; }
-    if (!list.length) return '<div class="dl-empty">' + I.get('briefcase', 64) + '<b>Deal Room</b><span>' + (unavailable ? 'O PlanKnect ainda não envia os deals para a TV. Assim que a rota /deals existir, o funil aparece aqui.' : 'Nenhum deal aberto.') + '</span></div>';
+    if (!list.length) return '<div class="dl-empty">' + I.get('briefcase', 64) + '<b>Deal Room</b><span>' + (forbidden ? 'Os deals estão desligados para esta TV. Em planknect.com › Configurações › Dispositivos › esta TV › Conteúdo e conexões, marque “Mostrar pipeline de deals” e salve.' : unavailable ? 'O PlanKnect ainda não envia os deals para a TV.' : 'Nenhum deal aberto.') + '</span></div>';
     var now = new Date(), stages = list[0].stages, tot = totals(list), next = soonest(list);
     var head = '<div class="dl-head"><h2>' + I.get('briefcase', 30) + ' DEAL ROOM</h2><div class="dl-kpis">' +
-      Object.keys(tot).map(function (c) { return '<div><b>' + money(tot[c].v, c) + '</b><span>em aberto · ponderado ' + money(tot[c].w, c) + '</span></div>'; }).join('') +
+      Object.keys(tot).slice(0, 3).map(function (k) { var c = k.split('|'); return '<div><b>' + money(tot[k].v, c[0]) + per(c[1]) + '</b><span>em aberto · ponderado ' + money(tot[k].w, c[0]) + per(c[1]) + '</span></div>'; }).join('') +
       '<div><b>' + list.length + '</b><span>deals</span></div>' + (next[0] ? '<div class="nx"><b>' + esc(next[0].next.text) + '</b><span>' + esc(next[0].company) + ' · ' + U.dueLabel(next[0].next.due, now) + '</span></div>' : '') + '</div></div>';
     var cols = stages.map(function (stg, si) {
       var items = list.filter(function (x) { return x.stage === stg; });
       var sum = totals(items);
-      return '<div class="dl-col"><div class="dl-col-h"><b>' + esc(stg) + '</b><span>' + items.length + (items.length ? ' · ' + Object.keys(sum).map(function (c) { return money(sum[c].v, c); }).join(' + ') : '') + '</span><i style="width:' + Math.round((si + 1) / stages.length * 100) + '%"></i></div>' +
+      return '<div class="dl-col"><div class="dl-col-h"><b>' + esc(stg) + '</b><span>' + items.length + (items.length ? ' · ' + Object.keys(sum).map(function (k) { var c = k.split('|'); return money(sum[k].v, c[0]) + per(c[1]); }).join(' + ') : '') + '</span><i style="width:' + Math.round((si + 1) / stages.length * 100) + '%"></i></div>' +
         items.map(function (x, i) { return card(x, now, si === 0 && i === 0); }).join('') + (items.length ? '' : '<div class="dl-none">—</div>') + '</div>';
     }).join('');
     return '<div class="dl">' + head + '<div class="dl-cols">' + cols + '</div></div>';
@@ -76,8 +99,8 @@ PK.deals = (function () {
   function card(x, now, af) {
     var late = x.next && x.next.due && x.next.due < U.startOfDay(now), stale = x.last && now - x.last > 7 * 864e5;
     return '<div class="dl-card focusable' + (x.risk || stale ? ' risk' : '') + '" data-open="deal:' + esc(x.id) + '"' + (af ? ' data-autofocus' : '') + '>' +
-      '<div class="dl-co">' + esc(x.company) + '</div><div class="dl-t">' + esc(x.title) + '</div>' +
-      '<div class="dl-v"><b>' + money(x.value, x.currency) + '</b><span>' + Math.round(x.probability * 100) + '%</span></div><div class="dl-p"><i style="width:' + Math.round(x.probability * 100) + '%"></i></div>' +
+      '<div class="dl-co">' + prio(x) + esc(x.company) + '</div><div class="dl-t">' + esc(x.title) + '</div>' +
+      '<div class="dl-v"><b>' + vals(x) + '</b>' + (temp(x) || '<span>' + Math.round(x.probability * 100) + '%</span>') + '</div><div class="dl-p"><i style="width:' + Math.round(x.probability * 100) + '%"></i></div>' +
       (x.next ? '<div class="dl-n' + (late ? ' late' : '') + '">' + I.get('flag', 16) + '<span>' + esc(x.next.text) + '</span>' + (x.next.due ? '<em>' + U.dueLabel(x.next.due, now) + '</em>' : '') + '</div>' : '') +
       (x.risk || stale ? '<div class="dl-r">' + I.get('bell', 15) + esc(x.risk || 'Sem atividade há ' + Math.round((now - x.last) / 864e5) + ' dias') + '</div>' : '') + '</div>';
   }
@@ -94,8 +117,9 @@ PK.deals = (function () {
       ((D.documents || []).length ? '<div class=\"dt-sec\">Documentos do Deal Room<span>' + D.documents.length + '</span></div><div class="dt-files">' + D.documents.map(function (f) { return '<span class="dt-file focusable">' + I.get(KIND[f.kind] || 'note', 24) + esc(f.name) + '</span>'; }).join('') + '</div>' : '') +
       ((D.activity || []).length ? '<div class=\"dt-sec\">Atividade</div>' + D.activity.slice(0, 4).map(function (a) { var at = U.toDate(a.at); return '<div class="dl-act"><b>' + (at ? U.dueLabel(at, now).replace('atrasada ', 'há ') : '') + '</b>' + esc(a.text) + (a.by ? '<em>' + esc(a.by) + '</em>' : '') + '</div>'; }).join('') : '') +
       (rel.length ? '<div class=\"dt-sec\">Tarefas ligadas<span>' + rel.length + '</span></div>' + rel.map(function (t) { return '<div class="dt-link focusable" data-open="task:' + esc(t.id) + '"><div class="dt-link-main"><b>' + esc(t.title) + '</b><span>' + (t.due ? U.dueLabel(t.due, now) : 'sem prazo') + '</span></div><span class="dt-go">›</span></div>'; }).join('') : '');
-    var side = '<div class="dl-big"><span>Valor</span><b>' + money(x.value, x.currency) + '</b><em>ponderado ' + money(x.value * x.probability, x.currency) + '</em></div>' +
-      '<div class="dl-prob"><span>Probabilidade</span><b>' + Math.round(x.probability * 100) + '%</b><div class="dl-p"><i style="width:' + Math.round(x.probability * 100) + '%"></i></div></div>' +
+    var side = '<div class="dl-big"><span>Valor</span>' + x.values.map(function (v) { return '<b>' + money(v.amount, v.currency) + '<small>' + per(v.period) + '</small></b>'; }).join('') + '</div>' +
+      '<div class="dl-prob"><span>' + (x.ai != null ? 'Temperatura (IA)' : 'Probabilidade') + '</span><b>' + Math.round(x.probability * 100) + (x.ai != null ? '' : '%') + ' ' + temp(x) + '</b><div class="dl-p"><i style="width:' + Math.round(x.probability * 100) + '%"></i></div></div>' +
+      (x.priority ? '<div class="dt-sec">Prioridade</div><div class="dt-big">' + prio(x) + '</div>' : '') + (x.outcome ? '<div class="dt-sec">Resultado</div><div class="dt-big">' + (x.outcome === 'won' ? 'Ganho' : x.outcome === 'lost' ? 'Perdido' : esc(x.outcome)) + '</div>' : '') +
       (x.close ? '<div class=\"dt-sec\">Fechamento previsto</div><div class="dt-big">' + U.longDate(x.close) + '<small> · ' + U.dueLabel(x.close, now).replace('atrasada ', 'atrasado ') + '</small></div>' : '') +
       ((D.contacts || []).length ? '<div class=\"dt-sec\">Contatos</div><div class="dt-people">' + D.contacts.map(function (c) { return '<div class="dt-person"><span class="av" style="background:#6366f1;width:44px;height:44px;font-size:18px">' + esc(String(c.name).charAt(0)) + '</span><div class="dt-person-main"><b>' + esc(c.name) + '</b><span>' + esc([c.role, c.company].filter(Boolean).join(' · ')) + '</span></div></div>'; }).join('') + '</div>' : '') +
       (x.project ? '<div class=\"dt-sec\">Projeto</div><div class="dt-big" style="font-size:22px">' + esc(x.project) + '</div>' : '') +
@@ -113,10 +137,10 @@ PK.deals = (function () {
   function compact(max) {
     var list = cache || [], now = new Date();
     if (!cache) { load(); return '<div class="wm-t done"><i></i><span>Carregando deals…</span></div>'; }
-    if (!list.length) return '<div class="wm-t done"><i></i><span>' + (unavailable ? 'Deals ainda não liberados para a TV' : 'Nenhum deal aberto') + '</span></div>';
+    if (!list.length) return '<div class="wm-t done"><i></i><span>' + (forbidden ? 'Deals desligados para esta TV (Dispositivos › Mostrar pipeline de deals)' : unavailable ? 'Deals ainda não liberados para a TV' : 'Nenhum deal aberto') + '</span></div>';
     return soonest(list).concat(list.filter(function (x) { return !x.next || !x.next.due; })).slice(0, max || 5).map(function (x) {
       var late = x.next && x.next.due && x.next.due < U.startOfDay(now);
-      return '<div class="wm-t wm-deal focusable" data-wm-deal="' + esc(x.id) + '"><i style="background:#fbbf24"></i><span><b>' + esc(x.company) + '</b> · ' + esc(x.next ? x.next.text : x.title) + '</span><em class="' + (late ? 'r' : '') + '">' + money(x.value, x.currency) + '</em></div>';
+      return '<div class="wm-t wm-deal focusable" data-wm-deal="' + esc(x.id) + '"><i style="background:#fbbf24"></i><span><b>' + esc(x.title) + '</b><small>' + esc(x.next ? x.next.text : x.stage) + '</small></span><em class="' + (late ? 'r' : '') + '">' + money(x.values[0].amount, x.values[0].currency) + per(x.values[0].period) + '</em></div>';
     }).join('');
   }
   function get(id) { return (cache || []).filter(function (y) { return y.id === id; })[0]; }
