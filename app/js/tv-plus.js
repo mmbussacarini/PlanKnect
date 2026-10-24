@@ -109,7 +109,7 @@ PK.plus = (function () {
         var missing = st.members.filter(function (m) { return (n.seenBy || []).indexOf(m.id) < 0 && m.id !== n.by; });
         return '<div class="pn-c c' + (i % 4) + ' focusable" data-pn="seen:' + esc(n.id) + '"><p>' + esc(n.text) + '</p><div class="pn-f">' + (by ? PK.views.av(by, 32) + ' <span>' + esc(first(by)) + '</span>' : '') + '<small>' + (n.at ? ago(n.at) : '') + '</small></div>' +
           '<div class="pn-s">' + (seen.length ? 'Visto por ' + seen.map(function (m) { return PK.views.av(m, 26); }).join('') : 'Ninguém viu ainda') + (missing.length ? '<em>OK = “Vi”</em>' : '') + '</div></div>';
-      }).join('') : '<div class="empty">Nenhum recado ainda.</div>') + '</div>';
+      }).join('') : '<div class="empty">Nenhum recado chegou do PlanKnect.<br><small>Se já existem recados, ative “Recados” para esta TV em planknect.com › Configurações › Dispositivos › Conteúdo e conexões. ID desta TV: <b>' + esc(PK.api.deviceId()) + '</b></small></div>') + '</div>';
   }
 
   /* ---------- modais (usam PK.app.openModal) ---------- */

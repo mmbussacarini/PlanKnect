@@ -17,6 +17,7 @@ PK.workmode = (function () {
 
   function open(gs) {
     getState = gs; active = true; full = false; picking = false;
+    var n0 = new Date(); sideTab = (gs().events || []).some(function (e) { return isMeet(e) && e.end > n0 && e.start - n0 < 30 * 60000; }) ? 'meet' : 'tasks'; // reunião perto: abre em Reuniões
     if (pref()) port = pref();
     var el = $('workmode');
     el.innerHTML = '<div class="wm-hdmi" id="wm-hdmi">' + (tvw() ? '' : '<div class="wm-ph">' + I.get('monitor', 80) + '<b>HDMI ' + port + '</b><span>Ligue o computador (ou um Apple TV) no HDMI — ele aparece aqui, com o PlanKnect em volta.<br>AirPlay direto do Mac abre em tela cheia pela própria TV.</span></div>') +
@@ -224,6 +225,7 @@ PK.workmode = (function () {
       .sort(function (a, b) { return (PR[a.priority] == null ? 1 : PR[a.priority]) - (PR[b.priority] == null ? 1 : PR[b.priority]) || a.due - b.due; });
     var late = open.filter(function (t) { return t.due < sod; }).length, today = open.length - late;
     var hours = w && w.hours ? w.hours.filter(function (h) { return h.time > now; }).slice(0, 4) : [];
+    var meetsN = st.events.filter(function (x) { return isMeet(x) && x.end > now && U.sameDay(x.start, now); }).length;
     var sig = sideTab + '|' + (e ? e.id + (live ? 'L' : soon ? 'S' : '') : '-') + '|' + open.length + '|' + (w ? w.temp : '') + '|' + now.getHours() + '|' + (PK.deals && PK.deals.get ? (PK.deals.compact(1) || '').length : 0);
     if (side.getAttribute('data-sig') !== sig) {
       side.setAttribute('data-sig', sig);
@@ -236,8 +238,10 @@ PK.workmode = (function () {
             ((live || soon) && e.video ? '<div class="wm-join"><div class="wm-qr" id="wm-qr"></div><div><b>Entrar no Meet</b><span>' + (u ? 'Aponte o celular' : 'Buscando o link…') + '</span>' + (u && PK.computer.on() ? '<button class="wm-go focusable" data-wm="join" data-url="' + esc(u) + '">' + I.get('video', 22) + ' Entrar no computador</button>' : '') + '</div></div>' : '') + '</div>'
           : '<div class="wm-next free"><span>HOJE</span><em>Nada mais na agenda</em><small>Bom momento para focar</small></div>') +
         '<div class="wm-tabs"><button class="wm-tab focusable' + (sideTab === 'tasks' ? ' on' : '') + '" data-wm="tab:tasks">Tarefas' + (late ? '<i class="r">' + late + '</i>' : '') + (today ? '<i>' + today + '</i>' : '') + '</button>' +
+          '<button class="wm-tab focusable' + (sideTab === 'meet' ? ' on' : '') + '" data-wm="tab:meet">' + I.get('video', 18) + ' Reuniões' + (meetsN ? '<i>' + meetsN + '</i>' : '') + '</button>' +
           '<button class="wm-tab focusable' + (sideTab === 'deals' ? ' on' : '') + '" data-wm="tab:deals">' + I.get('briefcase', 18) + ' Deals</button></div>' +
         (sideTab === 'deals' ? '<div class="wm-tasks">' + PK.deals.compact(live || soon ? 3 : 6) + '</div>' : '') +
+        (sideTab === 'meet' ? '<div class="wm-tasks">' + meetList(st, now, live || soon ? 3 : 6) + '</div>' : '') +
         (sideTab !== 'tasks' ? '' : '<div class="wm-tasks">') + (sideTab !== 'tasks' ? '' : open.length ? open.slice(0, live || soon ? 3 : 6).map(function (t) { return '<div class="wm-t focusable p-' + (t.priority || 'medium') + (t.due < sod ? ' late' : '') + '" data-wm-task="' + esc(t.id) + '"><i></i><span>' + esc(t.title) + (t.project ? '<small style="color:' + (t.projectColor || '#9aa8d1') + '">' + esc(t.project) + '</small>' : '') + '</span><em>' + (t.due < sod ? U.dueLabel(t.due, now).replace('atrasada ', '') : 'hoje') + '</em></div>'; }).join('') : '<div class="wm-t done"><i></i><span>Nada para hoje</span></div>') + (sideTab !== 'tasks' ? '' : '</div>');
       if (e && (live || soon)) drawQr(e);
     }
@@ -252,6 +256,18 @@ PK.workmode = (function () {
     var pill = $('wm-pill');
     if (pill) pill.innerHTML = '<em class="wm-hint">Voltar: sair da tela cheia</em><b>' + U.hm(now) + '</b>' + (e ? '<span class="' + (live ? 'live' : '') + '">' + (live ? 'termina em ' : esc(e.private ? 'Ocupado' : e.title).slice(0, 28) + ' em ') + mm(live ? e.end - now : e.start - now) + '</span>' : '');
   }
+  /* reuniões: hoje e próximos 7 dias; Entrar abre o Meet no computador (agent/computer-helper.js) */
+  function isMeet(e) { return !e.allDay && (e.type === 'meeting' || !!e.video || /^meeting:/.test(e.id)); }
+  function meetList(st, now, max) {
+    var list = st.events.filter(function (e) { return isMeet(e) && e.end > now && e.start < U.addDays(U.startOfDay(now), 8); }).sort(function (a, b) { return a.start - b.start; });
+    if (!list.length) return '<div class="wm-t done"><i></i><span>Nenhuma reunião nos próximos dias</span></div>';
+    return list.slice(0, max).map(function (e) {
+      var on = e.start <= now, soonM = !on && e.start - now < 15 * 60000, when = U.sameDay(e.start, now) ? U.hm(e.start) : U.DAYS_S[e.start.getDay()] + ' ' + U.hm(e.start);
+      return '<div class="wm-mt' + (on ? ' live' : soonM ? ' soon' : '') + '"><div class="wm-t focusable" data-wm-ev="' + esc(e.id) + '"><i style="background:' + (on ? '#f87171' : soonM ? '#fbbf24' : '#a78bfa') + '"></i><span>' + esc(e.private ? 'Ocupado' : e.title) + '<small>' + when + (on ? ' · agora' : soonM ? ' · em ' + Math.round((e.start - now) / 60000) + ' min' : '') + '</small></span></div>' +
+        (PK.computer.on() ? '<button class="wm-join-b focusable" data-wm="joinev" data-id="' + esc(e.id) + '">' + I.get('video', 18) + ' Entrar</button>' : '') + '</div>';
+    }).join('');
+  }
+
   /* linha do tempo: de 1h antes até 7h depois, com o "agora" */
   /* linha do tempo: de 1h atrás até o fim do dia (8 a 14 h), compromissos + tarefas com horário; tudo abre com OK */
   function timeline(st, now) {

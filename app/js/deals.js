@@ -83,7 +83,7 @@ PK.deals = (function () {
   function view(state) {
     var list = cache || [];
     if (!cache) { load().then(function () { if (PK.app.refreshView) PK.app.refreshView('deals'); }); return '<div class="dl-empty"><span class="spin"></span> Abrindo o Deal Room…</div>'; }
-    if (!list.length) return '<div class="dl-empty">' + I.get('briefcase', 64) + '<b>Deal Room</b><span>' + (forbidden ? 'Os deals estão desligados para esta TV. Em planknect.com › Configurações › Dispositivos › esta TV › Conteúdo e conexões, marque “Mostrar pipeline de deals” e salve.' : unavailable ? 'O PlanKnect ainda não envia os deals para a TV.' : 'Nenhum deal aberto.') + '</span></div>';
+    if (!list.length) return '<div class="dl-empty">' + I.get('briefcase', 64) + '<b>Deal Room</b><span>' + (forbidden ? 'Os deals estão desligados para esta TV. Em planknect.com › Configurações › Dispositivos › esta TV › Conteúdo e conexões, marque “Mostrar pipeline de deals” e salve. ID desta TV: ' + esc(PK.api.deviceId()) : unavailable ? 'O PlanKnect ainda não envia os deals para a TV.' : 'Nenhum deal aberto.') + '</span></div>';
     var now = new Date(), stages = list[0].stages, tot = totals(list), next = soonest(list);
     var head = '<div class="dl-head"><h2>' + I.get('briefcase', 30) + ' DEAL ROOM</h2><div class="dl-kpis">' +
       Object.keys(tot).slice(0, 3).map(function (k) { var c = k.split('|'); return '<div><b>' + money(tot[k].v, c[0]) + per(c[1]) + '</b><span>em aberto · ponderado ' + money(tot[k].w, c[0]) + per(c[1]) + '</span></div>'; }).join('') +

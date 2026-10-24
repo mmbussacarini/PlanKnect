@@ -185,7 +185,7 @@ PK.api = (function () {
   function wantAudio() { return !!PK.settings.get('ai.voice') && PK.settings.get('ai.planknectVoice') !== false; }
   function qs(q) { if (!q) return ""; var p = []; for (var k in q) if (q[k] != null) p.push(k + "=" + encodeURIComponent(q[k])); return p.length ? "?" + p.join("&") : ""; }
   function load() {
-    var from = U.weekStart(new Date()), to = U.addDays(from, 8);
+    var from = U.weekStart(new Date()), to = U.addDays(from, 15); // esta semana + a próxima
     return req('GET', '/api/tv/dashboard?from=' + encodeURIComponent(from.toISOString()) +
       '&to=' + encodeURIComponent(to.toISOString()) + '&tz=' + encodeURIComponent(tz())).then(PK.normalize.bundle);
   }
