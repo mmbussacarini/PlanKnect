@@ -809,3 +809,11 @@ html.no-anim *, html.no-anim *:before, html.no-anim *:after { animation-duration
 .tf-chip { display: inline-flex; align-items: center; font-size: 15px; padding: 6px 10px; margin: 0 8px 8px 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #e0e7ff; } .tf-chip .ic { margin-left: 6px; opacity: .7; }
 .tf-clear { font-size: 15px; padding: 6px 10px; margin: 0 8px 8px 0; border-radius: 12px; color: #fca5a5; background: rgba(248,113,113,.12); }
 .tf-open.focused, .tf-chip.focused, .tf-clear.focused { box-shadow: 0 0 0 3px #fff; }
+
+.who .av { flex: none !important; padding: 0 !important; aspect-ratio: 1 / 1; line-height: 1; }
+/* proteção de tela */
+#ambient .amb-content, #ambient .amb-memory { transition: transform 3s ease-in-out; }
+#ambient.dark { background: #000 !important; }
+.amb-dark { position: absolute; transform: translate(-50%, -50%); text-align: center; color: rgba(200, 210, 255, .42); transition: left 8s ease-in-out, top 8s ease-in-out; }
+.amb-dark b { display: block; font-size: 96px; font-weight: 200; letter-spacing: -2px; line-height: 1; } .amb-dark span { font-size: 22px; }
+body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }

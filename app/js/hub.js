@@ -471,13 +471,30 @@
     if ($('hb-clock') && $('hb-clock').textContent !== U.hm(new Date())) { top(); if (tab === 'today' || tab === 'timers') render(); }
     if (recipe && document.querySelector('.rc-run [data-cd]') && +document.querySelector('.rc-run [data-cd]').getAttribute('data-cd') <= now) drawRecipe();
     if (amb.afterMin && now - lastTouch > amb.afterMin * 60000 && !ringing.length && !recipe && $('hub-main').classList.contains('on')) enterAmbient();
-    if ($('hub-ambient').classList.contains('on') && new Date().getSeconds() === 0) ambientUI();
+    if ($('hub-ambient').classList.contains('on') && new Date().getSeconds() === 0) ambMinute();
   }
 
   /* ---------- MOLDURA (tela de espera) ---------- */
-  var ambI = 0, ambT = null;
+  var ambI = 0, ambT = null, ambSince = 0;
+  /* proteção da tela: a moldura se move um pouco a cada minuto e, depois de um tempo (ou à noite), vira um relógio pequeno que passeia na tela preta */
+  function rnd(n) { return Math.round((Math.random() * 2 - 1) * n); }
+  function nightNow() { var n = (PK.config.night || { from: 22, to: 6 }), h = new Date().getHours(); return n.from > n.to ? (h >= n.from || h < n.to) : (h >= n.from && h < n.to); }
+  function shouldDark() { var m = amb.darkAfterMin == null ? 45 : amb.darkAfterMin; return (amb.nightDark !== false && nightNow()) || (m > 0 && Date.now() - ambSince > m * 60000); }
+  function ambMinute() {
+    var el = $('hub-ambient');
+    if (!el.classList.contains('dark') && shouldDark()) { el.classList.add('dark'); clearInterval(ambT); el.innerHTML = '<div class="am-dark" id="am-dark"><b id="amd-t"></b><span id="amd-d"></span></div>'; }
+    if (el.classList.contains('dark')) {
+      var d = $('am-dark'), now = new Date(); if (!d) return;
+      $('amd-t').textContent = U.hm(now); $('amd-d').textContent = U.longDate(now);
+      d.style.left = (18 + Math.random() * 64) + '%'; d.style.top = (22 + Math.random() * 56) + '%';
+      return;
+    }
+    ambientUI();
+    var ui = $('am-ui'); if (ui) ui.style.transform = 'translate(' + rnd(14) + 'px,' + rnd(10) + 'px)';
+  }
   function enterAmbient() {
     var el = $('hub-ambient'); if (el.classList.contains('on')) return;
+    ambSince = Date.now(); el.classList.remove('dark');
     el.innerHTML = '<div class="am-ph" id="am-p0"></div><div class="am-ph" id="am-p1"></div><div class="am-sh"></div><div id="am-ui"></div>';
     el.classList.add('on'); ambI = 0; photo(); ambientUI();
     clearInterval(ambT); ambT = setInterval(function () { ambI++; photo(); ambientUI(); }, 20000);
@@ -520,7 +537,7 @@
       '<div class="am-left"><div class="am-t">' + U.hm(now) + '</div><div class="am-d">' + U.longDate(now) + '</div>' + wx + '</div>' + ag +
       (cap ? '<div class="am-cap">' + I.get('sparkle', 16) + ' ' + cap + '</div>' : (!ps.length ? '<div class="am-cap">Conecte o Google Photos no PlanKnect para ver as fotos da família aqui</div>' : ''));
   }
-  function exitAmbient() { var el = $('hub-ambient'); if (!el.classList.contains('on')) return; el.classList.remove('on'); clearInterval(ambT); lastTouch = Date.now(); load(); }
+  function exitAmbient() { var el = $('hub-ambient'); if (!el.classList.contains('on')) return; el.classList.remove('on', 'dark'); clearInterval(ambT); lastTouch = Date.now(); load(); }
 
   /* ---------- folhas (sheets) ---------- */
   function sheet(html) { closeSheet(); var d = document.createElement('div'); d.className = 'qa'; d.id = 'sheet'; d.innerHTML = '<div class="qa-box">' + html + '</div>'; $('hub').appendChild(d); }
@@ -552,6 +569,8 @@
     var opt = function (k, v, lbl) { return '<button class="' + (amb[k] === v ? 'on' : '') + '" data-set="' + k + ':' + v + '">' + lbl + '</button>'; };
     sheet('<div class="qa-h">Ajustes do display<button data-act="sheet-close">' + I.get('x', 26) + '</button></div>' +
       '<div class="st-r"><span>Moldura abre depois de</span><div class="seg">' + opt('afterMin', 2, '2 min') + opt('afterMin', 5, '5 min') + opt('afterMin', 10, '10 min') + opt('afterMin', 0, 'Nunca') + '</div></div>' +
+      '<div class="st-r"><span>Proteção de tela (relógio no escuro) depois de</span><div class="seg">' + opt('darkAfterMin', 15, '15 min') + opt('darkAfterMin', 30, '30 min') + opt('darkAfterMin', 45, '45 min') + opt('darkAfterMin', 0, 'Nunca') + '</div></div>' +
+      '<div class="st-r"><span>À noite (22h–6h), escurecer direto</span><div class="seg">' + opt('nightDark', true, 'Sim') + opt('nightDark', false, 'Não') + '</div></div>' +
       '<div class="st-r"><span>Na moldura, mostrar clima</span><div class="seg">' + opt('weather', true, 'Sim') + opt('weather', false, 'Não') + '</div></div>' +
       '<div class="st-r"><span>Na moldura, mostrar agenda</span><div class="seg">' + opt('agenda', true, 'Sim') + opt('agenda', false, 'Não') + '</div></div>' +
       '<div class="st-acts"><button data-act="sync">' + I.get('refresh', 20) + ' Atualizar agora</button><button data-act="sim-door">' + I.get('home', 20) + ' Testar campainha</button><button data-act="unlink">Desconectar</button></div>' +

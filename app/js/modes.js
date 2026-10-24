@@ -302,8 +302,12 @@ PK.modes = (function () {
     el.classList.add('active');
     renderAmbient(state);
     clearInterval(ambient.rotT);
+    ambient.since = Date.now(); ambient.dark = false; drift();
     ambient.rotT = setInterval(function () {
       ambient.rot++; var st = PK.app.state();
+      if (ambient.rot % 5 === 0) drift(); // a cada minuto, nada fica no mesmo lugar (protege a tela)
+      if (!ambient.dark && shouldDark()) goDark();
+      if (ambient.dark) { darkTick(); return; }
       renderAmbient(st);
       if ((st.photos || []).length > 1 && ambient.rot % 2 === 0) showPhoto(st.photos, ++ambient.photoIdx);
     }, 12000);
@@ -324,8 +328,32 @@ PK.modes = (function () {
     img.src = p.url;
   }
   function exitAmbient() {
-    ambient.active = false; clearInterval(ambient.rotT);
-    var el = $('ambient'); el.classList.remove('active'); el.innerHTML = '';
+    ambient.active = false; ambient.dark = false; clearInterval(ambient.rotT);
+    var el = $('ambient'); el.classList.remove('active'); el.classList.remove('dark'); el.innerHTML = '';
+  }
+  /* ---------- proteção de tela (anti burn-in) ----------
+   * 1) moldura: as informações mudam de posição a cada minuto;
+   * 2) descanso: depois de N min parado (Ajustes) ou de madrugada, tela preta com um relógio pequeno que flutua. */
+  function rnd(a) { return Math.round((Math.random() * 2 - 1) * a); }
+  function drift() {
+    var c = $('amb-content'), m = $('amb-memory');
+    if (c) c.style.transform = 'translate(' + rnd(60) + 'px,' + rnd(40) + 'px)';
+    if (m) m.style.transform = 'translate(' + rnd(40) + 'px,' + rnd(24) + 'px)';
+  }
+  function nightNow() { var h = new Date().getHours(), n = PK.config.night || { from: 22, to: 6 }; return n.from > n.to ? (h >= n.from || h < n.to) : (h >= n.from && h < n.to); }
+  function shouldDark() {
+    var mins = +S.get('ambient.darkAfterMin'); if (isNaN(mins)) mins = 45;
+    return (S.get('ambient.nightDark') !== false && nightNow()) || (mins > 0 && Date.now() - ambient.since > mins * 60000);
+  }
+  function goDark() {
+    ambient.dark = true; var el = $('ambient');
+    el.classList.add('dark'); el.innerHTML = '<div class="amb-dark" id="amb-dark"><b id="ad-t"></b><span id="ad-d"></span></div>'; // fotos e vídeo param (menos luz e energia)
+    darkTick();
+  }
+  function darkTick() {
+    var d = $('amb-dark'); if (!d) return; var now = new Date();
+    $('ad-t').textContent = U.hm(now); $('ad-d').textContent = U.longDate(now);
+    d.style.left = (160 + Math.round(Math.random() * 1400)) + 'px'; d.style.top = (140 + Math.round(Math.random() * 720)) + 'px'; // flutua pela tela
   }
   function renderAmbient(state) {
     var c = $('amb-content'); if (!c) return;

@@ -461,7 +461,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .who.fam { padding: 0 10px 0 6px; border-radius: 99px; background: rgba(52, 211, 153, .18); color: #6ee7b7; border: 1px solid rgba(52, 211, 153, .45); font-weight: 700; }
 .who.fam .ic { margin-right: 4px; } .who.fam em { font-style: normal; }
 .wk-av .who { margin-left: 6px; } .wk-item.allday .wk-av { float: right; }
-.tl-r .who { margin-left: auto; } .tl-r span { flex: 1; min-width: 0; } .hh-m .who { vertical-align: middle; margin-left: 8px; }
+.tl-r .who { margin-left: auto; } .tl-r > span { flex: 1; min-width: 0; } .hh-m .who { vertical-align: middle; margin-left: 8px; }
 /* mural de recados */
 .nb-c { position: relative; padding-top: 18px !important; border-radius: 4px 4px 16px 4px !important; }
 .nb-c.r0 { transform: rotate(-1.4deg); } .nb-c.r1 { transform: rotate(1deg); } .nb-c.r2 { transform: rotate(-.3deg); }
@@ -472,3 +472,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .nb-empty { margin: 50px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; color: #9aa8d1; }
 .nb-empty .ic { color: #fde68a; } .nb-empty b { font-size: 26px; color: #fff; margin: 10px 0 6px; } .nb-empty span { font-size: 16px; }
 .sec b { color: #fcd34d; }
+
+/* bolinhas das pessoas nunca esticam (redondas sempre) */
+.who .av { flex: none !important; min-width: 0; padding: 0 !important; aspect-ratio: 1 / 1; line-height: 1; }
+.tl-r .who .av, .hh-m .who .av { display: inline-flex; }
+
+/* proteção de tela */
+#am-ui { transition: transform 3s ease-in-out; }
+#hub-ambient.dark { background: #000; }
+.am-dark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: rgba(200,210,255,.38); transition: left 8s ease-in-out, top 8s ease-in-out; pointer-events: none; }
+.am-dark b { display: block; font-size: 64px; font-weight: 200; letter-spacing: 1px; line-height: 1; }
+.am-dark span { display: block; margin-top: 6px; font-size: 15px; }
+
+.tl-r > .who, .hero .who, .am-row .who { flex: none !important; width: auto !important; }
+.who.fam { flex: none !important; aspect-ratio: auto; }
