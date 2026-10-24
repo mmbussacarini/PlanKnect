@@ -10,6 +10,7 @@
   var tab = 'today', listSel = null, adding = false, showDone = false, undoId = null, recentDone = {};
   var timers = U.store.get('hubTimers', []), lastTouch = Date.now(), pairT = null, recipe = null;
   var amb = U.store.get('hubAmb', { weather: true, agenda: true, afterMin: 5 });
+  if (amb.darkAfterMin == null) amb.darkAfterMin = 45; if (amb.nightDark == null) amb.nightDark = true; if (!amb.saver) amb.saver = 'auto';
   var STAPLES = ['Leite', 'Pão', 'Ovos', 'Banana', 'Café', 'Arroz', 'Feijão', 'Tomate', 'Queijo', 'Manteiga', 'Papel higiênico', 'Detergente'];
   var NOTES = ['Jantar pronto!', 'Já volto', 'Chego em 10 min', 'Hora de dormir', 'Desçam para o café', 'Alguém viu minha chave?'];
   var PRESETS = [['Ovo cozido', 9, 'tooth'], ['Chá', 4, 'plate'], ['Massa', 10, 'chef'], ['Arroz', 18, 'chef'], ['Pizza', 12, 'chef'], ['Bolo', 40, 'cake'],
@@ -482,7 +483,8 @@
   function shouldDark() { var m = amb.darkAfterMin == null ? 45 : amb.darkAfterMin; return (amb.nightDark !== false && nightNow()) || (m > 0 && Date.now() - ambSince > m * 60000); }
   function ambMinute() {
     var el = $('hub-ambient');
-    if (!el.classList.contains('dark') && shouldDark()) { el.classList.add('dark'); clearInterval(ambT); el.innerHTML = '<div class="am-dark" id="am-dark"><b id="amd-t"></b><span id="amd-d"></span></div>'; }
+    if (!el.classList.contains('dark') && shouldDark()) { el.classList.add('dark'); clearInterval(ambT); el.innerHTML = '<div id="am-sv"></div><div class="am-dark" id="am-dark"><b id="amd-t"></b><span id="amd-d"></span></div>';
+      if (PK.saver) PK.saver.mount($('am-sv'), amb.saver || 'auto', { night: nightNow(), isNight: nightNow }); }
     if (el.classList.contains('dark')) {
       var d = $('am-dark'), now = new Date(); if (!d) return;
       $('amd-t').textContent = U.hm(now); $('amd-d').textContent = U.longDate(now);
@@ -570,10 +572,11 @@
     sheet('<div class="qa-h">Ajustes do display<button data-act="sheet-close">' + I.get('x', 26) + '</button></div>' +
       '<div class="st-r"><span>Moldura abre depois de</span><div class="seg">' + opt('afterMin', 2, '2 min') + opt('afterMin', 5, '5 min') + opt('afterMin', 10, '10 min') + opt('afterMin', 0, 'Nunca') + '</div></div>' +
       '<div class="st-r"><span>Proteção de tela (relógio no escuro) depois de</span><div class="seg">' + opt('darkAfterMin', 15, '15 min') + opt('darkAfterMin', 30, '30 min') + opt('darkAfterMin', 45, '45 min') + opt('darkAfterMin', 0, 'Nunca') + '</div></div>' +
+      '<div class="st-r"><span>Protetor de tela</span><div class="seg wrap">' + PK.saver.OPTS.map(function (o) { return opt('saver', o[0], o[1]); }).join('') + '</div></div>' +
       '<div class="st-r"><span>À noite (22h–6h), escurecer direto</span><div class="seg">' + opt('nightDark', true, 'Sim') + opt('nightDark', false, 'Não') + '</div></div>' +
       '<div class="st-r"><span>Na moldura, mostrar clima</span><div class="seg">' + opt('weather', true, 'Sim') + opt('weather', false, 'Não') + '</div></div>' +
       '<div class="st-r"><span>Na moldura, mostrar agenda</span><div class="seg">' + opt('agenda', true, 'Sim') + opt('agenda', false, 'Não') + '</div></div>' +
-      '<div class="st-acts"><button data-act="sync">' + I.get('refresh', 20) + ' Atualizar agora</button><button data-act="sim-door">' + I.get('home', 20) + ' Testar campainha</button><button data-act="unlink">Desconectar</button></div>' +
+      '<div class="st-acts"><button data-act="saver-test">' + I.get('sparkle', 20) + ' Ver protetor</button><button data-act="sync">' + I.get('refresh', 20) + ' Atualizar agora</button><button data-act="sim-door">' + I.get('home', 20) + ' Testar campainha</button><button data-act="unlink">Desconectar</button></div>' +
       '<div class="st-foot">' + (PK.data.mode() === 'live' ? 'Conectado ao PlanKnect' : 'Modo demonstração') + ' · versão ' + esc(window.PK_VERSION || '') + '</div>');
   }
 
@@ -613,7 +616,7 @@
     if (a('data-notetext')) whoSheet('Quem está escrevendo?', 'noteby', a('data-notetext'));
     if (a('data-noteby')) { closeSheet(); var txt = a('data-noteby'); write(PK.data.addNote(txt, a('data-m')).then(function () { return PK.data.broadcast({ kind: 'family', icon: 'note', title: txt, ttl: 10 }).catch(function () {}); }), 'Recado enviado'); }
     if (a('data-note')) { closeSheet(); write(PK.data.broadcast({ kind: 'family', icon: 'note', title: a('data-note'), ttl: 10 }), 'Aviso enviado: ' + a('data-note')); }
-    if (a('data-set')) { var sp = a('data-set').split(':'), val = sp[1] === 'true' ? true : sp[1] === 'false' ? false : +sp[1]; amb[sp[0]] = val; U.store.set('hubAmb', amb); settingsSheet(); }
+    if (a('data-set')) { var sp = a('data-set').split(':'), val = sp[1] === 'true' ? true : sp[1] === 'false' ? false : isNaN(+sp[1]) ? sp[1] : +sp[1]; amb[sp[0]] = val; U.store.set('hubAmb', amb); settingsSheet(); }
     if (act === 'frame') enterAmbient();
     if (act === 'mission-new') { nm.points = null; missionSheet(); }
     if (a('data-tf')) { var fp = a('data-tf').split(':'); tf[fp[0]] = fp[1]; if (fp[0] === 'when') tf.userWhen = true; render(); }
@@ -626,6 +629,7 @@
       if (tt) { if (patch.status) tt.status = 'done'; else tt.due = new Date(patch.due + 'T00:00:00'); render(); }
       write(PK.data.updateTask(tp[0], patch), patch.status ? 'Tarefa concluída' : 'Adiada');
     }
+    if (act === 'saver-test') { closeSheet(); enterAmbient(); ambSince = 0; ambMinute(); return; }
     if (act === 'task-new') { sheet('<div class="qa-h">Nova tarefa<button data-act="sheet-close">' + I.get('x', 26) + '</button></div><div class="pa"><div id="pa-qr"></div><div><b>Fale ou escreva no celular</b><span>Aponte a câmera: abre o PlanKnect já em “nova tarefa”. Você também pode falar: “nova tarefa revisar contrato sexta, prioridade alta”.</span></div></div>'); qr('pa-qr', C.remoteUrl + '?device=nest-hub&intent=task', 180); }
     if (act === 'mic') micSheet();
     if (act === 'knect') PK.jarvis.open();

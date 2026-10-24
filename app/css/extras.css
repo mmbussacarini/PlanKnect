@@ -817,3 +817,13 @@ html.no-anim *, html.no-anim *:before, html.no-anim *:after { animation-duration
 .amb-dark { position: absolute; transform: translate(-50%, -50%); text-align: center; color: rgba(200, 210, 255, .42); transition: left 8s ease-in-out, top 8s ease-in-out; }
 .amb-dark b { display: block; font-size: 96px; font-weight: 200; letter-spacing: -2px; line-height: 1; } .amb-dark span { font-size: 22px; }
 body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }
+
+/* protetor de tela em movimento */
+.sv-host { position: absolute; inset: 0; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #000; }
+.sv-host canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.sv-host canvas.sv-soft { filter: blur(18px); transform: scale(1.1); }
+.sv-host .sv-scene { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.sv-host .sv-scene > .scene { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.sv-host:after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; opacity: .3; pointer-events: none; }
+.sv-host.sv-night:after { opacity: .6; }
+.amb-dark { z-index: 2; color: rgba(230,236,255,.6); text-shadow: 0 2px 12px rgba(0,0,0,.8); }

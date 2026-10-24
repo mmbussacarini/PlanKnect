@@ -296,6 +296,7 @@
     'meeting.style': [['banner', 'Banner discreto + QR do Meet'], ['backdrop', 'Fundo para câmera'], ['onair', 'Aviso para a família']],
     'ambient.afterMin': [[5, '5 min'], [10, '10 min'], [20, '20 min'], [0, 'Nunca']],
     'ambient.darkAfterMin': [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hora'], [120, '2 horas'], [0, 'Nunca']],
+    'ambient.saver': (PK.saver ? PK.saver.OPTS : [['black', 'Só relógio']]),
     'ambient.nightDark': [[true, 'Sim (22h–6h)'], [false, 'Não']],
     'meeting.auto': [[true, 'Ligado'], [false, 'Desligado']],
     'alerts.meetingLeadMin': [[2, '2 min'], [5, '5 min'], [10, '10 min'], [15, '15 min']],
@@ -371,8 +372,10 @@
       row('Cenário do modo ambiente', optLabel('ambient.scene'), 'data-set="ambient.scene"', 'sparkle') +
       row('Modo ambiente depois de', optLabel('ambient.afterMin'), 'data-set="ambient.afterMin"', 'moon', 'Relógio e cenário quando ninguém usa a TV') +
       row('Proteção de tela: escurecer depois de', optLabel('ambient.darkAfterMin'), 'data-set="ambient.darkAfterMin"', 'moon', 'Tela preta com relógio pequeno que flutua — evita marcas na tela') +
+      row('Protetor de tela', optLabel('ambient.saver'), 'data-set="ambient.saver"', 'sparkle', 'Vídeo ou animação em movimento + relógio que flutua') +
       row('Escurecer direto de madrugada', optLabel('ambient.nightDark'), 'data-set="ambient.nightDark"', 'moon') +
       row('Testar modo ambiente', '▶', 'data-act="ambient-now"', 'play') +
+      row('Ver protetor de tela agora', '▶', 'data-act="saver-now"', 'play') +
       row('Moldura: mostrar clima', optLabel('ambient.weather'), 'data-set="ambient.weather"', 'sun') +
       row('Moldura: mostrar agenda de cada pessoa', optLabel('ambient.agenda'), 'data-set="ambient.agenda"', 'users') +
       (!live ? row('Restaurar dados do demo', '↺', 'data-act="reset-demo"', 'trash') : '') +
@@ -530,6 +533,7 @@
     }
     if (act === 'meeting-now') { closeOverlay(); M.meeting.toggle(true, state); }
     if (act === 'ambient-now') { closeOverlay(); M.ambient.enter(state); }
+    if (act === 'saver-now') { closeOverlay(); M.ambient.saver(state); }
     if (act === 'reset-demo') { PK.mock.reset(); closeOverlay(); refreshData(); PK.toast('Demo restaurado'); }
     var arg = a('data-arg');
     var wItem = function () { return (state.watch.items || []).filter(function (x) { return x.id === arg; })[0]; };

@@ -347,7 +347,8 @@ PK.modes = (function () {
   }
   function goDark() {
     ambient.dark = true; var el = $('ambient');
-    el.classList.add('dark'); el.innerHTML = '<div class="amb-dark" id="amb-dark"><b id="ad-t"></b><span id="ad-d"></span></div>'; // fotos e vídeo param (menos luz e energia)
+    el.classList.add('dark'); el.innerHTML = '<div id="amb-sv"></div><div class="amb-dark" id="amb-dark"><b id="ad-t"></b><span id="ad-d"></span></div>';
+    if (PK.saver) PK.saver.mount($('amb-sv'), S.get('ambient.saver') || 'auto', { night: nightNow(), isNight: nightNow }); // algo sempre em movimento
     darkTick();
   }
   function darkTick() {
@@ -395,6 +396,6 @@ PK.modes = (function () {
 
   return {
     meeting: { active: function () { return meet.active; }, banner: function () { return !!meet.banner; }, bannerOff: bannerOff, key: meetingKey, tick: tickMeeting, toggle: toggleMeeting, SCENES: SCENES, name: sceneName },
-    ambient: { active: function () { return ambient.active; }, enter: enterAmbient, exit: exitAmbient, tick: tickAmbient, input: input }
+    ambient: { active: function () { return ambient.active; }, saver: function (st) { if (!ambient.active) enterAmbient(st); goDark(); }, enter: enterAmbient, exit: exitAmbient, tick: tickAmbient, input: input }
   };
 })();

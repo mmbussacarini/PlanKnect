@@ -33,7 +33,7 @@ PK.config = {
     onAirMessage: 'Shhh… papai está em reunião'
   },
 
-  ambient: { darkAfterMin: 45, nightDark: true, afterMin: 10, scene: 'auto', weather: true, agenda: true }, // 0 = nunca
+  ambient: { saver: 'auto', darkAfterMin: 45, nightDark: true, afterMin: 10, scene: 'auto', weather: true, agenda: true }, // 0 = nunca
   home: { extra: 'note', scene: 'auto' },     // fundo da tela inicial: 'auto' | id de cenário | 'dark'
 
   // Alfred (conceito Jarvis): nome, voz e momentos do briefing automático
