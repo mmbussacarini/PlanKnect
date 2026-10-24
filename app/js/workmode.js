@@ -138,12 +138,13 @@ PK.workmode = (function () {
   }
 
   function click(e) {
-    var b = e.target.closest && e.target.closest('[data-wm],[data-wm-port],[data-wm-task],[data-wm-tdo],[data-wm-deal],[data-wm-ev]'); if (!b) return;
+    var b = e.target.closest && e.target.closest('[data-wm],[data-wm-port],[data-wm-task],[data-wm-tdo],[data-wm-deal],[data-wm-ev],[data-wm-slot]'); if (!b) return;
     e.stopPropagation();
     var a = b.getAttribute('data-wm'), p = b.getAttribute('data-wm-port');
     if (p) return choose(p);
     var tk = b.getAttribute('data-wm-task'); if (tk) return taskSheet(tk);
     var dl = b.getAttribute('data-wm-deal'); if (dl) return dealSheet(dl);
+    var sl = b.getAttribute('data-wm-slot'); if (sl) return slotSheet(sl.split(','));
     var ev = b.getAttribute('data-wm-ev'); if (ev) return eventSheet(ev);
     if (a && a.indexOf('tab:') === 0) { sideTab = a.slice(4); $('wm-side').setAttribute('data-sig', ''); render(); var tb = document.querySelector('[data-wm="tab:' + sideTab + '"]'); if (tb) PK.nav.focus(tb); return; }
     if (a === 'room') { var evid = b.getAttribute('data-id'); taskSheet(null); close(); PK.modes.meeting.toggle(true, PK.app.state()); return; }
@@ -172,6 +173,13 @@ PK.workmode = (function () {
     modal(true); el.classList.add('on'); setTimeout(PK.nav.reset, 30);
   }
   function sheetOpen(html) { var el = $('wm-pick'); picking = true; el.innerHTML = html; modal(true); el.classList.add('on'); setTimeout(PK.nav.reset, 30); }
+  // várias tarefas no mesmo horário: lista para escolher
+  function slotSheet(ids) {
+    var list = (getState().tasks || []).filter(function (t) { return ids.indexOf(t.id) >= 0; }); if (!list.length) return;
+    sheetOpen('<div class="wm-pk-h">' + U.hm(list[0].due) + ' · ' + list.length + ' tarefas</div><div class="wm-slot">' + list.map(function (t, i) {
+      return '<button class="wm-sl focusable" data-wm-task="' + esc(t.id) + '"' + (i === 0 ? ' data-autofocus' : '') + ' style="--c:' + (t.projectColor || '#94a3b8') + '"><i></i><b>' + esc(t.title) + '</b><em>' + esc(t.project || '') + '</em></button>';
+    }).join('') + '</div><div class="wm-pk-row"><button class="wm-pk focusable" data-wm="tclose">' + I.get('x', 30) + '<b>Fechar</b><em>voltar</em></button></div>');
+  }
   function dealSheet(id) {
     var x = PK.deals.get(id); if (!x) return; var now = new Date();
     sheetOpen('<div class="wm-pk-h">' + esc(x.company) + ' · ' + esc(x.title) + '</div><div class="wm-tk-meta">' + esc(x.stage) + ' · ' + PK.deals.money(x.value, x.currency) + ' · ' + Math.round(x.probability * 100) + '% · fecha ' + (x.close ? U.dueLabel(x.close, now) : '—') + '</div>' +
@@ -287,9 +295,15 @@ PK.workmode = (function () {
         var l = 0; while (lanes[l] && lanes[l] > e.start) l++; lanes[l] = e.end; if (l > 1) l = 1;
         var a = pos(e.start), b = pos(e.end);
         return '<div class="wm-ev focusable t-' + (e.type || 'event') + '" data-wm-ev="' + esc(e.id) + '" style="left:' + a + '%;width:' + Math.max(13, b - a) + '%;top:' + (l * 42) + 'px" data-s="' + e.start.getTime() + '" data-e="' + e.end.getTime() + '"><b>' + U.hm(e.start) + (e.video ? ' · Meet' : '') + '</b>' + esc(e.private ? 'Ocupado' : e.title) + '</div>';
-      }).join('') + tks.map(function (t) {
-        return '<div class="wm-tm focusable" data-wm-task="' + esc(t.id) + '" style="left:' + pos(t.due) + '%;--c:' + (t.projectColor || '#fbbf24') + '"><i></i><span>' + U.hm(t.due) + ' ' + esc(t.title) + '</span></div>';
-      }).join('') + (evs.length || tks.length ? '' : '<div class="wm-free">Agenda livre até o fim do dia</div>') + '<div class="wm-now" id="wm-now"><i></i></div></div>' +
+      }).join('') + (function () { // tarefas no mesmo horário viram um marcador só ("10:00 · 3 tarefas")
+        var slots = {}, order = [], lastX = -100;
+        tks.slice().sort(function (a, b) { return a.due - b.due; }).forEach(function (t) { var k = Math.floor(t.due.getTime() / 1800000); if (!slots[k]) { slots[k] = []; order.push(k); } slots[k].push(t); });
+        return order.map(function (k, i) {
+          var g = slots[k], x = pos(g[0].due), row = x - lastX < 14 ? (i % 2) : 0; lastX = x; // marcadores próximos alternam de linha
+          var one = g.length === 1;
+          return '<div class="wm-tm focusable" ' + (one ? 'data-wm-task="' + esc(g[0].id) + '"' : 'data-wm-slot="' + g.map(function (t) { return t.id; }).join(',') + '"') + ' style="left:' + x + '%;top:' + (64 + row * 24) + 'px;--c:' + (g[0].projectColor || '#fbbf24') + '"><i></i><span>' + U.hm(g[0].due) + ' ' + (one ? esc(g[0].title) : '<b>' + g.length + ' tarefas</b>') + '</span></div>';
+        }).join('');
+      })() + (evs.length || tks.length ? '' : '<div class="wm-free">Agenda livre até o fim do dia</div>') + '<div class="wm-now" id="wm-now"><i></i></div></div>' +
         (allDay ? '<div class="wm-alld"><span>Hoje, sem horário</span>' + allDayT.slice(0, 4).map(function (t) { return '<button class="wm-ad focusable" data-wm-task="' + esc(t.id) + '" style="--c:' + (t.projectColor || '#94a3b8') + '"><i></i>' + esc(t.title) + '</button>'; }).join('') + (allDay > 4 ? '<em>+' + (allDay - 4) + '</em>' : '') + '</div>' : '');
     }
     var n = $('wm-now'); if (n) n.style.left = pos(now) + '%';

@@ -16,7 +16,7 @@ PK.plus = (function () {
     ['Levar o lixo', 'trash', 'tarde', 5], ['Arrumar o quarto', 'home', 'tarde', 10], ['Lavar a louça', 'plate', 'noite', 10], ['Praticar instrumento', 'star', 'tarde', 10]];
   var COLORS = { meeting: '#a78bfa', task: '#60a5fa', milestone: '#fb923c', event: '#34d399', family: '#ff7a9a', church: '#fbbf24', birthday: '#e879f9' };
 
-  function member(st, id) { return st.members.filter(function (m) { return m.id === id; })[0]; }
+  function member(st, id) { return st.members.filter(function (m) { return m.id === id || m.familyMemberId === id; })[0]; }
   function first(m) { return m ? String(m.name).split(' ')[0] : ''; }
   function mmss(ms) { var s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600); return (h ? h + ':' + U.pad(Math.floor(s % 3600 / 60)) : Math.floor(s / 60)) + ':' + U.pad(s % 60); }
   function until(ms) {
@@ -26,7 +26,7 @@ PK.plus = (function () {
     if (h) return h + 'h ' + U.pad(m % 60); return m + ' min ' + U.pad(Math.floor(ms / 1000) % 60) + 's';
   }
   function at(hhmm, base) { var p = hhmm.split(':'), d = new Date(base || Date.now()); d.setHours(+p[0], +p[1], 0, 0); return d; }
-  function ago(d) { var m = Math.round((Date.now() - d) / 60000); return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : 'há ' + Math.round(m / 60) + ' h'; }
+  function ago(d) { var m = Math.round((Date.now() - new Date(d)) / 60000); return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : m < 1440 ? 'há ' + Math.round(m / 60) + ' h' : m < 2880 ? 'ontem' : 'há ' + Math.round(m / 1440) + ' dias'; }
 
   /* ---------- contagens ---------- */
   function countdowns(st) {
@@ -147,15 +147,23 @@ PK.plus = (function () {
 
   /* ---------- RECADOS (aba) ---------- */
   function notesView(st) {
-    var ns = st.notes || [];
-    var c = (st.settings && st.settings.content) || {}, live = PK.data.mode() === 'live', canWrite = !live || c.noteWrite !== false;
-    return '<div class="pn-head"><h1>Recados da família</h1>' + (canWrite ? '' : '<span class="pn-lock">' + I.get('bell', 20) + ' Escrever recados está desligado para esta TV</span>') + '<button class="btn focusable' + (canWrite ? '' : ' ghost') + '" data-pn="new" data-autofocus>' + I.get('plus', 24) + ' Novo recado</button></div><div class="pn-grid">' +
-      (ns.length ? ns.slice(0, 8).map(function (n, i) {
-        var by = member(st, n.by), seen = (n.seenBy || []).map(function (id) { return member(st, id); }).filter(Boolean);
-        var missing = st.members.filter(function (m) { return (n.seenBy || []).indexOf(m.id) < 0 && m.id !== n.by; });
-        return '<div class="pn-c c' + (i % 4) + ' focusable" data-pn="seen:' + esc(n.id) + '"><p>' + esc(n.text) + '</p><div class="pn-f">' + (by ? PK.views.av(by, 32) + ' <span>' + esc(first(by)) + '</span>' : '') + '<small>' + (n.at ? ago(n.at) : '') + '</small></div>' +
-          '<div class="pn-s">' + (seen.length ? 'Visto por ' + seen.map(function (m) { return PK.views.av(m, 26); }).join('') : 'Ninguém viu ainda') + (missing.length ? '<em>OK = “Vi”</em>' : '') + '</div></div>';
-      }).join('') : '<div class="empty">Nenhum recado chegou do PlanKnect.<br><small>Se já existem recados, ative “Recados” para esta TV em planknect.com › Configurações › Dispositivos › Conteúdo e conexões. ID desta TV: <b>' + esc(PK.api.deviceId()) + '</b></small></div>') + '</div>';
+    var ns = st.notes || [], c = (st.settings && st.settings.content) || {}, live = PK.data.mode() === 'live', canWrite = !live || c.noteWrite !== false;
+    var seenOf = function (n) { return (n.seenBy || []).map(function (id) { return member(st, id); }).filter(Boolean); };
+    var unseen = ns.filter(function (n) { return !seenOf(n).length; }).length;
+    var head = '<div class="pn-head"><h1>' + I.get('note', 44) + ' Recados da família</h1>' + (ns.length ? '<span class="pn-count">' + ns.length + ' recado' + (ns.length > 1 ? 's' : '') + (unseen ? ' · <b>' + unseen + ' novo' + (unseen > 1 ? 's' : '') + '</b>' : '') + '</span>' : '') +
+      (canWrite ? '' : '<span class="pn-lock">' + I.get('bell', 20) + ' Escrever recados está desligado para esta TV</span>') +
+      '<button class="btn focusable' + (canWrite ? '' : ' ghost') + '" data-pn="new"' + (ns.length ? '' : ' data-autofocus') + '>' + I.get('plus', 24) + ' Novo recado</button></div>';
+    if (!ns.length) return head + '<div class="pn-empty">' + I.get('note', 96) + '<b>O mural está vazio</b><span>Recados escritos aqui, no Nest Hub ou no PlanKnect aparecem para toda a família — e cada um marca “Vi”.</span>' +
+      (canWrite ? '' : '<small>Para escrever pela TV: planknect.com › Configurações › Dispositivos › esta TV (' + esc(PK.api.deviceId()) + ') › “Escrever recados”.</small>') + '</div>';
+    return head + '<div class="pn-board">' + ns.slice(0, 8).map(function (n, i) {
+      var by = member(st, n.by), seen = seenOf(n), isNew = !seen.length;
+      var missing = st.members.filter(function (m) { return seen.indexOf(m) < 0 && m !== by; });
+      return '<div class="pn-c c' + (i % 4) + ' r' + (i % 3) + ' focusable' + (isNew ? ' new' : '') + '" data-pn="seen:' + esc(n.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '><i class="pn-pin"></i>' + (isNew ? '<span class="pn-new">NOVO</span>' : '') +
+        '<div class="pn-by">' + (by ? PK.views.av(by, 44) + '<span><b>' + esc(first(by)) + '</b><small>' + (n.at ? ago(n.at) : '') + '</small></span>' : '<span><small>' + (n.at ? ago(n.at) : '') + '</small></span>') + '</div>' +
+        '<p>' + esc(n.text) + '</p>' +
+        '<div class="pn-s">' + (seen.length ? '<span class="pn-seen">' + I.get('check', 18) + seen.map(function (m) { return PK.views.av(m, 28); }).join('') + '</span>' : '<span>Ninguém viu ainda</span>') +
+        (missing.length ? '<em>OK = “Vi”</em>' : '<em class="all">Todos viram</em>') + '</div></div>';
+    }).join('') + '</div>';
   }
 
   /* ---------- modais (usam PK.app.openModal) ---------- */

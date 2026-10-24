@@ -5,6 +5,18 @@ window.PK = PK;
 
 /* ---------------- util ---------------- */
 PK.face = function (m) { return m && m.photo ? 'background:' + (m.color || '#334155') + ' url(\'' + String(m.photo).replace(/['"\\]/g, '') + '\') center/cover;' : ''; }; // foto do membro (quando o PlanKnect mandar)
+// quem participa de um compromisso: fotos (ou inicial na cor da pessoa), "+N", ou selo Família quando é de todos
+PK.who = function (state, e, size, max) {
+  var mem = (state && state.members) || [], ids = (e && e.members) || [], s = size || 28, fam = state && state.household && state.household.id;
+  var everyone = mem.length > 1 && mem.every(function (m) { return ids.indexOf(m.id) >= 0; });
+  if (everyone || (!ids.length && fam && e.organizationId === fam && e.type !== 'task' && e.type !== 'milestone'))
+    return '<span class="who fam" title="Família" style="height:' + s + 'px;font-size:' + Math.round(s * .42) + 'px">' + PK.icons.get('users', Math.round(s * .62)) + (s >= 28 ? '<em>Família</em>' : '') + '</span>';
+  var list = ids.map(function (id) { return mem.filter(function (m) { return m.id === id; })[0]; }).filter(Boolean); if (!list.length) return '';
+  var n = max || 3, esc = PK.util.esc;
+  return '<span class="who">' + list.slice(0, n).map(function (m) {
+    return '<span class="av" style="background:' + (m.color || '#7c5cff') + ';' + PK.face(m) + 'width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s * .46) + 'px">' + (m.photo ? '' : esc(m.initial || String(m.name || '?').charAt(0))) + '</span>';
+  }).join('') + (list.length > n ? '<span class="av more" style="width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s * .38) + 'px">+' + (list.length - n) + '</span>' : '') + '</span>';
+};
 PK.noAuto = /[?&]noauto=1/.test(location.search); // sem rotinas/Alfred/ambiente automáticos (capturas de tela)
 if (PK.noAuto) document.documentElement.className += ' no-anim';
 PK.util = (function () {

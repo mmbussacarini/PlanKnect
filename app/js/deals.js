@@ -70,12 +70,12 @@ PK.deals = (function () {
   }
   var PER = { month: '/mês', monthly: '/mês', year: '/ano', yearly: '/ano', annual: '/ano', annually: '/ano', week: '/sem', weekly: '/sem', quarter: '/tri', quarterly: '/tri', one_time: '', once: '', onetime: '' };
   function per(p) { return p ? (PER[String(p).toLowerCase()] != null ? PER[String(p).toLowerCase()] : '/' + p) : ''; }
-  function vals(x) { return x.values.map(function (v) { return money(v.amount, v.currency) + per(v.period); }).join(' + '); }
+  function vals(x) { var v2 = x.values.filter(function (v) { return v.amount; }); return v2.length ? v2.map(function (v) { return money(v.amount, v.currency) + per(v.period); }).join(' + ') : '<span class="dl-nov">sem valor</span>'; }
   var TEMP = { hot: ['Quente', 'hot'], warm: ['Morno', 'warm'], cold: ['Frio', 'cold'] };
   function temp(x) { var t = TEMP[String(x.temperature || '').toLowerCase()]; return t || x.ai != null ? '<span class="dl-temp ' + (t ? t[1] : '') + '">' + (t ? t[0] : 'IA') + (x.ai != null ? ' · ' + Math.round(x.ai) : '') + '</span>' : ''; }
   function prio(x) { return x.priority ? '<span class="dl-pr ' + String(x.priority).toLowerCase() + '">' + String(x.priority).toUpperCase() + '</span>' : ''; }
   function totals(list) {
-    var by = {}; list.forEach(function (x) { x.values.forEach(function (v) { var c = (v.currency || '—') + '|' + (v.period || ''); by[c] = by[c] || { v: 0, w: 0 }; by[c].v += v.amount; by[c].w += v.amount * x.probability; }); });
+    var by = {}; list.forEach(function (x) { x.values.forEach(function (v) { if (!v.amount) return; var c = (v.currency || '—') + '|' + (v.period || ''); by[c] = by[c] || { v: 0, w: 0 }; by[c].v += v.amount; by[c].w += v.amount * x.probability; }); });
     return by;
   }
   function soonest(list) { return list.filter(function (x) { return x.next && x.next.due; }).sort(function (a, b) { return a.next.due - b.next.due; }); }

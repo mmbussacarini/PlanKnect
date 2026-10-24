@@ -30,7 +30,7 @@
   function show(id) { Array.prototype.forEach.call(document.querySelectorAll('.hub-screen'), function (s) { s.classList.toggle('on', s.id === id); }); }
   function icons(root) { Array.prototype.forEach.call((root || document).querySelectorAll('[data-ic]'), function (i) { i.outerHTML = I.get(i.getAttribute('data-ic'), 24); }); }
   function qr(id, text, size) { var el = $(id); if (!el) return; el.innerHTML = ''; if (window.QRCode) new window.QRCode(el, { text: text, width: size, height: size, colorDark: '#0b1230', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); }
-  function member(id) { return state.members.filter(function (m) { return m.id === id; })[0]; }
+  function member(id) { return state.members.filter(function (m) { return m.id === id || m.familyMemberId === id; })[0]; }
   function first(m) { return m ? String(m.name).split(' ')[0] : ''; }
   function av(m, s) { return m ? '<span class="av" style="background:' + m.color + ';' + PK.face(m) + 'width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s * .45) + 'px">' + (m.photo ? '' : esc(m.initial)) + '</span>' : ''; }
   function mmss(ms) { var s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600); return (h ? h + ':' + U.pad(Math.floor(s % 3600 / 60)) : Math.floor(s / 60)) + ':' + U.pad(s % 60); }
@@ -41,7 +41,7 @@
     if (h) return h + 'h ' + U.pad(m % 60); return m + ' min ' + U.pad(Math.floor(ms / 1000) % 60) + 's';
   }
   function at(hhmm, base) { var p = hhmm.split(':'), d = new Date(base || Date.now()); d.setHours(+p[0], +p[1], 0, 0); return d; }
-  function ago(d) { var m = Math.round((Date.now() - d) / 60000); return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : 'há ' + Math.round(m / 60) + ' h'; }
+  function ago(d) { var m = Math.round((Date.now() - new Date(d)) / 60000); return m < 1 ? 'agora' : m < 60 ? 'há ' + m + ' min' : m < 1440 ? 'há ' + Math.round(m / 60) + ' h' : m < 2880 ? 'ontem' : 'há ' + Math.round(m / 1440) + ' dias'; }
 
   /* ---------- pareamento ---------- */
   function pair() {
@@ -150,7 +150,7 @@
     var leave = countdowns().filter(function (c) { return c.key === 'leave'; })[0];
     var b = bills();
     var hero = next ? '<div class="hb-hero" style="--c:' + (COLORS[next.type] || '#60a5fa') + '"><div class="hh-k">' + (next.start <= now ? 'AGORA' : 'A SEGUIR · ' + U.relMinutes((next.start - now) / 60000)) + '</div>' +
-      '<div class="hh-t">' + esc(next.private ? 'Ocupado' : next.title) + '</div><div class="hh-m">' + U.hm(next.start) + ' – ' + U.hm(next.end) + ' ' + (next.members || []).map(function (id) { return av(member(id), 26); }).join('') + '</div></div>'
+      '<div class="hh-t">' + esc(next.private ? 'Ocupado' : next.title) + '</div><div class="hh-m">' + U.hm(next.start) + ' – ' + U.hm(next.end) + ' ' + PK.who(state, next, 30, 4) + '</div></div>'
       : '<div class="hb-hero"><div class="hh-k">HOJE</div><div class="hh-t">Agenda livre</div></div>';
     var chips = (meal ? '<button class="chip" data-go="dinner">' + I.get('chef', 22) + ' ' + esc(meal.title) + '</button>' : '') +
       (state.lists[0] ? '<button class="chip" data-go="list">' + I.get('cart', 22) + ' ' + state.lists[0].items.filter(function (i) { return !i.done; }).length + ' na lista</button>' : '') +
@@ -158,7 +158,7 @@
       (function () { var g = taskGroups(); var n = g.today.length + g.late.length; return n ? '<button class="chip' + (g.late.length ? ' warn' : '') + '" data-go="tasks">' + I.get('task', 22) + ' ' + (g.today.length ? g.today.length + ' tarefa' + (g.today.length > 1 ? 's' : '') + ' hoje' : '') + (g.today.length && g.late.length ? ' · ' : '') + (g.late.length ? g.late.length + ' atrasada' + (g.late.length > 1 ? 's' : '') : '') + '</button>' : ''; })() +
       (state.notes.length ? '<button class="chip" data-go="notes">' + I.get('note', 22) + ' ' + state.notes.length + ' recado' + (state.notes.length > 1 ? 's' : '') + '</button>' : '');
     var side = timed.length ? timed.map(function (e) {
-      return '<div class="tl-r' + (e.end <= now ? ' past' : '') + '" style="--c:' + (COLORS[e.type] || '#60a5fa') + '"><b>' + U.hm(e.start) + '</b><i></i><span>' + esc(e.private ? 'Ocupado' : e.title) + '</span></div>';
+      return '<div class="tl-r' + (e.end <= now ? ' past' : '') + '" style="--c:' + (COLORS[e.type] || '#60a5fa') + '"><b>' + U.hm(e.start) + '</b><i></i><span>' + esc(e.private ? 'Ocupado' : e.title) + '</span>' + PK.who(state, e, 24, 3) + '</div>';
     }).join('') : '<div class="hb-empty">Nada marcado para hoje.</div>';
     return '<div class="hb-today"><div class="ht-l">' +
       (leave ? '<div class="leave" style="--c:' + leave.accent + '">' + I.get('sun2', 26) + '<span>' + esc(leave.label) + ' em</span><b data-cd="' + leave.at.getTime() + '">' + until(leave.at - now) + '</b></div>' : '<div class="ht-time">' + U.hm(now) + '</div>') +
@@ -364,15 +364,17 @@
 
   /* ---------- RECADOS (com "visto por") ---------- */
   function notesView() {
-    var ns = state.notes || [];
-    return '<div class="hb-notes"><div class="nb-h"><div class="sec">RECADOS DA FAMÍLIA</div><button class="act" data-act="note-new">' + I.get('plus', 22) + ' Novo recado</button></div><div class="nb-grid">' +
-      (ns.length ? ns.slice(0, 6).map(function (n, i) {
-        var by = member(n.by), seen = (n.seenBy || []).map(member).filter(Boolean);
-        var missing = state.members.filter(function (m) { return (n.seenBy || []).indexOf(m.id) < 0 && m.id !== n.by; });
-        return '<div class="nb-c c' + (i % 4) + '"><p>' + esc(n.text) + '</p><div class="nb-f">' + (by ? av(by, 24) + ' <span>' + esc(first(by)) + '</span>' : '') + '<small>' + (n.at ? ago(n.at) : '') + '</small></div>' +
-          '<div class="nb-s"><span>' + (seen.length ? 'Visto por ' + seen.map(function (m) { return av(m, 20); }).join('') : 'Ninguém viu ainda') + '</span>' +
-          (missing.length ? '<button data-seen="' + esc(n.id) + '">' + I.get('check', 18) + ' Vi</button>' : '') + '</div></div>';
-      }).join('') : '<div class="hb-empty">Nenhum recado. Toque em “Novo recado”.</div>') + '</div></div>';
+    var ns = state.notes || [], seenOf = function (n) { return (n.seenBy || []).map(member).filter(Boolean); };
+    var unseen = ns.filter(function (n) { return !seenOf(n).length; }).length;
+    return '<div class="hb-notes"><div class="nb-h"><div class="sec">RECADOS DA FAMÍLIA' + (ns.length ? ' · ' + ns.length + (unseen ? ' · <b>' + unseen + ' novo' + (unseen > 1 ? 's' : '') + '</b>' : '') : '') + '</div><button class="act" data-act="note-new">' + I.get('plus', 22) + ' Novo recado</button></div>' +
+      (ns.length ? '<div class="nb-grid">' + ns.slice(0, 6).map(function (n, i) {
+        var by = member(n.by), seen = seenOf(n), isNew = !seen.length;
+        var missing = state.members.filter(function (m) { return seen.indexOf(m) < 0 && m !== by; });
+        return '<div class="nb-c c' + (i % 4) + ' r' + (i % 3) + (isNew ? ' new' : '') + '"><i class="nb-pin"></i>' + (isNew ? '<span class="nb-new">NOVO</span>' : '') +
+          '<div class="nb-by">' + (by ? av(by, 30) + '<span><b>' + esc(first(by)) + '</b><small>' + (n.at ? ago(n.at) : '') + '</small></span>' : '<small>' + (n.at ? ago(n.at) : '') + '</small>') + '</div><p>' + esc(n.text) + '</p>' +
+          '<div class="nb-s"><span>' + (seen.length ? I.get('check', 16) + seen.map(function (m) { return av(m, 22); }).join('') : 'Ninguém viu ainda') + '</span>' +
+          (missing.length ? '<button data-seen="' + esc(n.id) + '">' + I.get('check', 18) + ' Vi</button>' : '<em>Todos viram</em>') + '</div></div>';
+      }).join('') + '</div>' : '<div class="nb-empty">' + I.get('note', 64) + '<b>O mural está vazio</b><span>Toque em “Novo recado” — aparece na TV e no PlanKnect.</span></div>') + '</div>';
   }
 
   /* ---------- render ---------- */

@@ -84,6 +84,13 @@ PK.normalize = (function () {
   function bundle(b) {
     b = dedupe(b);
     var out = personal(b, bundle0(b)), today = localKey(new Date());
+    // mesmo compromisso para várias pessoas (ex.: "Swimming class" do Wesley e da Lara) → um só, com todos
+    var seenEv = {}; out.events = out.events.filter(function (e) {
+      if (!e.members.length) return true;
+      var k = (e.title || '').toLowerCase() + '|' + (e.start && e.start.getTime()) + '|' + (e.end && e.end.getTime());
+      var f = seenEv[k]; if (!f) { seenEv[k] = e; return true; }
+      e.members.forEach(function (id) { if (f.members.indexOf(id) < 0) f.members.push(id); }); (f.sameAs = f.sameAs || []).push(e.id); return false;
+    });
     out.choresAll = out.chores; // todas (próximos dias também) — a agenda usa
     out.chores = out.chores.filter(function (c) { return !c.due || String(c.due).slice(0, 10) === today; }); // missões de hoje
     return out;

@@ -91,7 +91,7 @@ PK.views = (function () {
       items += '<div class="tl-item focusable' + (past ? ' past' : '') + (live ? ' live' : '') + '" data-open="event:' + esc(e.id) + '" style="--c:' + color(e) + '">' +
         '<div class="tl-time">' + U.hm(e.start) + '<span>' + U.hm(e.end) + '</span></div><i class="tl-dot"></i>' +
         '<div class="tl-main"><div class="tl-title">' + esc(title(e)) + '</div><div class="tl-sub">' + I.get(T(e).icon, 20) + ' ' + T(e).label +
-        (e.location ? ' · ' + esc(e.location) : '') + '</div></div>' + stack(state, e.members, 30, 3) + '</div>';
+        (e.location ? ' · ' + esc(e.location) : '') + '</div></div>' + PK.who(state, e, 34, 3) + '</div>';
     });
     if (!nowPlaced && timed.length) items += '<div class="tl-now"><span>' + U.hm(now) + '</span></div>';
     var right = '<div class="h-right glass"><div class="h-sec">HOJE<span>' + timed.length + ' compromisso' + (timed.length === 1 ? '' : 's') + (allDay.length ? ' · ' + allDay.length + ' do dia' : '') + '</span></div>' +
@@ -234,7 +234,7 @@ PK.views = (function () {
         '<div class="wk-w">' + (wd ? I.get(I.weather(wd.code, true), 24) + ' ' + wd.max + '°' : '') + '</div></div>' +
         '<div class="wk-list">' + evs.slice(0, MAX).map(function (e) {
           return '<div class="wk-item' + (e.allDay ? ' allday' : '') + '" style="--c:' + color(e) + '">' +
-            (e.allDay ? '' : '<span class="wk-time">' + U.hm(e.start) + '<span class="wk-av">' + avatars(state, e.members, 22) + '</span></span>') + '<span class="wk-t">' + esc(title(e)) + '</span></div>';
+            (e.allDay ? '<span class="wk-av">' + PK.who(state, e, 20, 3) + '</span>' : '<span class="wk-time">' + U.hm(e.start) + '<span class="wk-av">' + PK.who(state, e, 22, 3) + '</span></span>') + '<span class="wk-t">' + esc(title(e)) + '</span></div>';
         }).join('') + (evs.length > MAX ? '<div class="wk-more">+' + (evs.length - MAX) + ' mais</div>' : '') +
         (!evs.length ? '<div class="wk-free">Livre</div>' : '') + '</div>' +
         (meal ? '<div class="wk-meal">' + I.get('chef', 20) + ' ' + esc(meal.title) + '</div>' : '') + (function () {
@@ -286,7 +286,7 @@ PK.views = (function () {
         return '<div class="dd-item focusable" data-open="event:' + esc(e.id) + '" style="--c:' + color(e) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' +
           '<div class="dd-time">' + (e.allDay ? 'Dia todo' : U.hm(e.start) + ' — ' + U.hm(e.end)) + '</div>' +
           '<div class="dd-title">' + I.get(T(e).icon, 28) + ' ' + esc(title(e)) + '</div>' +
-          '<div class="dd-av">' + avatars(state, e.members, 34) + '</div></div>';
+          '<div class="dd-av">' + PK.who(state, e, 36, 4) + '</div></div>';
       }).join('') : '<div class="empty">Dia livre.</div>') + '</div>' +
         (meal ? '<div class="dd-meal">' + I.get('chef', 26) + ' Jantar: <b>' + esc(meal.title) + '</b></div>' : '')
     };
