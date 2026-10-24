@@ -478,7 +478,7 @@ PK.jarvis = (function () {
     var mt = st.events.filter(function (e) { return !e.allDay && (e.type === 'meeting' || e.video) && e.end > now && e.start - now < 15 * 60000; })[0];
     if (mt) { var on = mt.start <= now; out.push({ ic: 'video', t: title(mt), s: on ? L('acontecendo agora', 'happening now') : L('começa em ', 'starts in ') + ago(mt.start - now), go: 'event|' + mt.id,
       say: on ? L(title(mt) + ' já começou.', title(mt) + ' has already begun.') : L(title(mt) + ' começa em ' + ago(mt.start - now) + '.', title(mt) + ' begins in ' + ago(mt.start - now) + '.') }); }
-    var hi = (st.tasks || []).filter(function (t) { return t.status !== 'done' && t.priority === 'high' && t.due && t.due < U.addDays(sod, 1); })[0];
+    var hi = (st.tasks || []).filter(function (t) { return t.status !== 'done' && /high|urgent/.test(t.priority) && t.due && t.due < U.addDays(sod, 1); })[0];
     if (hi) out.push({ ic: 'task', t: hi.title, s: hi.due < sod ? L('atrasada há ', 'overdue by ') + ago(now - hi.due) : L('vence hoje', 'due today'), go: 'task|' + hi.id,
       say: L('A tarefa ' + hi.title + ' é urgente.', 'The task ' + hi.title + ' is urgent.') });
     var bl = (st.lists || []).filter(function (l) { return /payment|pagamento|conta/i.test(l.name); })[0];

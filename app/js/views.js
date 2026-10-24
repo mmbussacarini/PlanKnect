@@ -13,7 +13,7 @@ PK.views = (function () {
     church: { color: '#fbbf24', icon: 'church', label: 'Igreja' },
     birthday: { color: '#e879f9', icon: 'cake', label: 'Aniversário' }
   };
-  var PRIO = { high: { label: 'Alta', cls: 'high', w: 0 }, medium: { label: 'Média', cls: 'med', w: 1 }, low: { label: 'Baixa', cls: 'low', w: 2 } };
+  var PRIO = { urgent: { label: 'Urgente', cls: 'urgent', w: -1 }, high: { label: 'Alta', cls: 'high', w: 0 }, medium: { label: 'Média', cls: 'med', w: 1 }, low: { label: 'Baixa', cls: 'low', w: 2 } };
 
   function T(e) { return TYPE[e.type] || TYPE.event; }
   function color(e) { return e.color || T(e).color; }

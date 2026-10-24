@@ -200,7 +200,7 @@ PK.workmode = (function () {
 
   /* ---------- painéis ---------- */
   function mm(ms) { var m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? Math.floor(m / 60) + 'h ' + U.pad(m % 60) : m + ' min'; }
-  var PR = { high: 0, medium: 1, low: 2 };
+  var PR = { urgent: -1, high: 0, medium: 1, low: 2 };
   function nextEvent(st, now) {
     return st.events.filter(function (e) { return !e.allDay && e.end > now && U.sameDay(e.start, now); })
       .sort(function (a, b) { return a.start - b.start; })[0];

@@ -6,7 +6,7 @@ window.PK = PK;
 PK.details = (function () {
   var U = PK.util, I = PK.icons, esc = U.esc;
   var RSVP = { accepted: ['Confirmado', 'ok'], tentative: ['Talvez', 'maybe'], needsAction: ['Pendente', 'pending'], declined: ['Recusou', 'no'] };
-  var PRIO = { high: ['Alta', 'high'], medium: ['Média', 'med'], low: ['Baixa', 'low'] };
+  var PRIO = { urgent: ['Urgente', 'urgent'], high: ['Alta', 'high'], medium: ['Média', 'med'], low: ['Baixa', 'low'] };
   var FILE_IC = { sheet: 'list', pdf: 'note', doc: 'note' };
 
   function st() { return PK.app.state(); }
@@ -131,7 +131,7 @@ PK.details = (function () {
     (d.openTasks || []).forEach(function (t) { if (!all.some(function (x) { return x.id === t.id; })) all.push(t); });
     all.sort(function (a, b) { return (a.due || Infinity) - (b.due || Infinity); });
     var late = all.filter(function (t) { return t.due && t.due < sod; }), week = all.filter(function (t) { return t.due && t.due >= sod && t.due < eow; }), nodate = all.filter(function (t) { return !t.due; });
-    var byPrio = { high: 0, medium: 0, low: 0 }; all.forEach(function (t) { byPrio[t.priority in byPrio ? t.priority : 'medium']++; });
+    var byPrio = { high: 0, medium: 0, low: 0 }; all.forEach(function (t) { byPrio[t.priority === 'urgent' ? 'high' : t.priority in byPrio ? t.priority : 'medium']++; });
     var byStat = {}; all.forEach(function (t) { var k = t.status === 'in_progress' || t.status === 'review' ? t.status : 'todo'; (byStat[k] = byStat[k] || []).push(t); });
     var people = {}; all.forEach(function (t) { if (t.assignee) people[t.assignee] = (people[t.assignee] || 0) + 1; });
     var pct = d.progress != null ? Math.round(d.progress * 100) : null, health = late.length >= 3 ? ['Em risco', 'late'] : late.length ? ['Atenção', 'soon'] : ['No prazo', 'ok'];

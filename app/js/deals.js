@@ -33,11 +33,11 @@ PK.deals = (function () {
 
   // GET /deals do PlanKnect: name, project, stageLabel, priority p1–p3, temperature, temperatureAi, nextAction(Due), outcome, values[]
   function fromApi(x) {
-    var vals = (x.values || []).map(function (v) { return { amount: +(v.amount != null ? v.amount : v.value != null ? v.value : v.total) || 0, currency: v.currency || '', period: v.period || v.billingPeriod || v.billing_period || v.interval || '' }; });
+    var vals = (x.values || []).map(function (v) { return { amount: +(v.amount != null ? v.amount : v.value != null ? v.value : v.total) || 0, currency: v.currency || '', period: v.frequency || v.period || v.billingPeriod || v.billing_period || v.interval || '' }; });
     var y = { id: x.id, title: x.name || x.title, company: x.project || x.company || '', project: x.project || '', projectId: x.projectId, stage: x.stageLabel || x.stage || 'Sem estágio',
       priority: x.priority, temperature: x.temperature, ai: x.temperatureAi, outcome: x.outcome, values: vals, url: x.url,
       probability: x.temperatureAi != null ? x.temperatureAi / 100 : (x.probability || 0),
-      next_step: x.nextAction ? { text: x.nextAction, due: x.nextActionDue } : (x.next_step || null), last_activity_at: x.lastActivityAt || x.updatedAt || x.last_activity_at,
+      next_step: x.nextAction ? { text: x.nextAction, due: x.nextActionDue } : (x.next_step || null), last_activity_at: x.lastActivity || x.lastActivityAt || x.updatedAt || x.last_activity_at,
       documents: x.documents, contacts: x.contacts, activity: x.activity };
     if (vals.length) { y.value = vals[0].amount; y.currency = vals[0].currency; y.period = vals[0].period; }
     return y;

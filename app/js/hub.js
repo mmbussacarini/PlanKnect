@@ -204,7 +204,7 @@
   }
 
   /* ---------- TAREFAS ---------- */
-  var PRIO = { high: ['Alta', 'high'], medium: ['Média', 'med'], low: ['Baixa', 'low'] };
+  var PRIO = { urgent: ['Urgente', 'urgent'], high: ['Alta', 'high'], medium: ['Média', 'med'], low: ['Baixa', 'low'] };
   function late(d) {
     var days = Math.round((U.startOfDay(new Date()) - U.startOfDay(d)) / 864e5);
     if (days <= 0) return U.dueLabel(d, new Date());
