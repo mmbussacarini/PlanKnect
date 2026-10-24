@@ -4,6 +4,7 @@ var PK = window.PK || {};
 window.PK = PK;
 
 /* ---------------- util ---------------- */
+PK.face = function (m) { return m && m.photo ? 'background:' + (m.color || '#334155') + ' url(\'' + String(m.photo).replace(/['"\\]/g, '') + '\') center/cover;' : ''; }; // foto do membro (quando o PlanKnect mandar)
 PK.noAuto = /[?&]noauto=1/.test(location.search); // sem rotinas/Alfred/ambiente automáticos (capturas de tela)
 if (PK.noAuto) document.documentElement.className += ' no-anim';
 PK.util = (function () {
@@ -263,16 +264,19 @@ PK.nav = (function () {
   }
   function items() {
     var s = scope(); if (!s) return [];
-    return Array.prototype.slice.call(s.querySelectorAll('.focusable')).filter(function (el) {
-      if (el.offsetParent === null || el.disabled) return false;
-      var v = el.closest('.view'); return !v || v.classList.contains('active');
-    });
+    var nodes;
+    if (s.classList.contains('screen') && s.querySelector('.view.active')) { // tela principal: só o topo e a aba aberta (muito mais leve na TV)
+      nodes = Array.prototype.slice.call(s.querySelectorAll('.topbar .focusable')).concat(Array.prototype.slice.call(s.querySelectorAll('.view.active .focusable')));
+    } else nodes = Array.prototype.slice.call(s.querySelectorAll('.focusable'));
+    return nodes.filter(function (el) { return !el.disabled && el.offsetParent !== null; });
   }
+  var lastInView = {};
   function focus(el, noScroll) {
     if (!el) return;
     if (current) current.classList.remove('focused');
     current = el;
     el.classList.add('focused');
+    var vw = el.closest && el.closest('.view.active'); if (vw) lastInView[vw.id] = el;
     if (el.tagName === 'INPUT') el.focus(); else if (document.activeElement && document.activeElement.tagName === 'INPUT') document.activeElement.blur();
     if (!noScroll && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     var evt = document.createEvent('Event'); evt.initEvent('pkfocus', true, true); el.dispatchEvent(evt);
@@ -294,7 +298,14 @@ PK.nav = (function () {
       var score = primary + cross * 2.2;
       if (score < bestScore) { bestScore = score; best = el; }
     });
-    if (best) focus(best);
+    if (best) {
+      var inTop = function (el) { return !!(el.closest && el.closest('.topbar')); };
+      // conteúdo → menu: vai para a aba atual (não para o botão do topo mais próximo)
+      if (dir === 'up' && inTop(best) && !inTop(current)) { var tab = document.querySelector('.topbar .tab.active'); if (tab) best = tab; }
+      // menu → conteúdo: volta para onde estava nesta aba
+      if (dir === 'down' && inTop(current) && !inTop(best)) { var v = document.querySelector('.view.active'), last = v && lastInView[v.id]; if (last && document.body.contains(last) && last.offsetParent !== null && v.contains(last)) best = last; }
+      focus(best);
+    }
   }
   function preferred(list) {
     var p = list.filter(function (el) { return el.hasAttribute('data-autofocus'); })[0];
@@ -343,7 +354,13 @@ PK.updater = (function () {
 /* Mensagem amigável para falhas de escrita — mostra o motivo real que o PlanKnect devolveu. */
 PK.writeErr = function (e) {
   var m = (e && e.message) || '';
-  if (/enable task editing|editing/i.test(m)) return 'Ative “Editar tarefas” para esta TV em planknect.com › Dispositivos';
+  var where = ' para esta TV em planknect.com › Configurações › Dispositivos';
+  if (/note/i.test(m) && /edit|writ|enable|forbid|permission/i.test(m)) return 'Ative “Escrever recados”' + where;
+  if (/chore/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar missões”' + where;
+  if (/(list|shopping)/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar listas”' + where;
+  if (/task/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar tarefas”' + where;
+  if (/memory/i.test(m)) return 'Ative a memória do Alfred' + where;
+  if (/forbidden|403/i.test(m)) return 'Esta TV não tem permissão para isso — veja Ajustes › “O que esta TV pode ver e fazer”';
   if (/not_found|404|HTTP 405/.test(m)) return 'Ainda não disponível no PlanKnect';
   if (/unauthorized/.test(m)) return 'Sessão expirada — conecte a TV de novo';
   return m ? 'PlanKnect: ' + PK.util.esc(m) : 'Não consegui salvar — tente de novo';

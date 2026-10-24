@@ -69,7 +69,7 @@ PK.plus = (function () {
       '<div class="pt-right">' + (run ? '<div class="pt-run">' + run + '</div>' : '') + '<div class="card pt-cds' + (run ? '' : ' big') + '"><h2><span class="chev">›</span>CONTAGEM PARA O QUE VEM</h2>' + (cds || '<div class="empty">Nada marcado nas próximas horas.</div>') + '</div></div></div>';
   }
   function addTimer(min, label, extra) {
-    var t = { id: U.uid(), end: Date.now() + min * 60000, total: min * 60000, label: label || ('Timer de ' + min + ' min') };
+    var t = { id: U.uid(), end: Date.now() + min * 60000, total: min * 60000, orig: min * 60000, label: label || ('Timer de ' + min + ' min') };
     for (var k in extra || {}) t[k] = extra[k];
     timers.push(t); U.store.set('tvTimers', timers); return t;
   }
@@ -80,9 +80,52 @@ PK.plus = (function () {
       if (t.id !== id) return;
       if (p[0] === 'pause') { if (t.paused) { t.end = Date.now() + t.remain; t.paused = false; } else { t.remain = t.end - Date.now(); t.paused = true; } }
       if (p[0] === 'plus') { if (t.paused) t.remain += 60000; else t.end = Math.max(t.end, Date.now()) + 60000; t.total += 60000; }
+      if (p[0] === 'snooze') { t.paused = false; t.end = Date.now() + 5 * 60000; t.total = 5 * 60000; delete rang[t.id]; }
+      if (p[0] === 'restart') { t.paused = false; t.total = t.orig || t.total; t.end = Date.now() + t.total; delete rang[t.id]; }
     });
-    if (p[0] === 'stop') timers = timers.filter(function (t) { return t.id !== id; });
+    if (p[0] === 'stop') { timers = timers.filter(function (t) { return t.id !== id; }); delete rang[id]; }
     U.store.set('tvTimers', timers);
+    popup(); chip();
+  }
+
+  /* ---------- timer tocando: janela por cima de qualquer tela + bipe que para de verdade ---------- */
+  var actx = null, beepT = null, ringSince = 0;
+  function ringing() { var now = Date.now(); return timers.filter(function (t) { return !t.paused && t.end <= now; }); }
+  function beep() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      actx = actx || new AC(); if (actx.state === 'suspended') actx.resume();
+      [0, 0.25].forEach(function (d) {
+        var o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + d;
+        o.frequency.value = 880; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+        o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + 0.2);
+      });
+    } catch (e) {}
+  }
+  function popup() {
+    var r = ringing(), el = document.getElementById('tm-pop');
+    if (!r.length) {
+      clearInterval(beepT); beepT = null; ringSince = 0;
+      if (el && el.classList.contains('active')) PK.app.hideOverlay('tm-pop');
+      return;
+    }
+    if (!el) { el = document.createElement('div'); el.id = 'tm-pop'; el.className = 'overlay tm-pop'; document.getElementById('stage').appendChild(el); }
+    var t = r[0], keep = el.querySelector('.focused'), keepAct = keep && keep.getAttribute('data-pt');
+    el.innerHTML = '<div class="tm-box"><div class="tm-ic">' + I.get('bell', 64) + '</div><div class="tm-k">TIMER TERMINOU</div><div class="tm-l">' + esc(t.label) + '</div>' +
+      '<div class="tm-ago" id="tm-ago"></div>' + (r.length > 1 ? '<div class="tm-more">+' + (r.length - 1) + ' timer' + (r.length > 2 ? 's' : '') + ' também terminou</div>' : '') +
+      '<div class="tm-btns"><button class="btn focusable" data-pt="stop:' + t.id + '" data-autofocus>' + I.get('x', 24) + ' Parar</button>' +
+      '<button class="btn ghost focusable" data-pt="snooze:' + t.id + '">' + I.get('clock', 24) + ' Soneca 5 min</button>' +
+      '<button class="btn ghost focusable" data-pt="restart:' + t.id + '">' + I.get('refresh', 24) + ' Reiniciar ' + mmss(t.orig || t.total) + '</button></div></div>';
+    if (!el.classList.contains('active')) PK.app.showOverlay('tm-pop');
+    else { var nb = keepAct && el.querySelector('[data-pt="' + keepAct + '"]'); PK.nav.focus(nb || el.querySelector('[data-autofocus]'), true); }
+    if (!beepT) { ringSince = Date.now(); beep(); beepT = setInterval(function () { if (Date.now() - ringSince > 3 * 60000) { clearInterval(beepT); return; } beep(); }, 2200); } // silencia sozinho em 3 min
+  }
+  // pílula com o timer mais próximo, em qualquer tela
+  function chip() {
+    var run = timers.filter(function (t) { return !t.paused && t.end > Date.now(); }).sort(function (a, b) { return a.end - b.end; }), el = document.getElementById('tm-chip');
+    if (!run.length) { if (el) el.style.display = 'none'; return; }
+    if (!el) { el = document.createElement('div'); el.id = 'tm-chip'; document.getElementById('stage').appendChild(el); }
+    el.style.display = ''; el.innerHTML = I.get('clock', 22) + '<b>' + mmss(run[0].end - Date.now()) + '</b><span>' + esc(run[0].label) + '</span>' + (run.length > 1 ? '<em>+' + (run.length - 1) + '</em>' : '');
   }
   // A cada segundo: atualiza anéis/contagens e dispara o alarme (cartão de aviso com som do navegador)
   var rang = {};
@@ -95,15 +138,18 @@ PK.plus = (function () {
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-ptcd]'), function (el) { var ms = +el.getAttribute('data-ptcd') - now; el.textContent = el.hasAttribute('data-day') ? until(ms).replace(/ \d+h$/, '') : until(ms); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-rccd]'), function (el) { el.textContent = mmss(+el.getAttribute('data-rccd') - now); });
-    timers.forEach(function (t) {
-      if (!t.paused && t.end <= now && !rang[t.id]) { rang[t.id] = 1; PK.alerts.push({ kind: 'device', icon: 'refresh', label: 'TIMER', title: t.label + ' terminou', body: 'Aperte OK para fechar', ttl: 5, urgent: true }); }
-    });
+    var newly = false;
+    timers.forEach(function (t) { if (!t.paused && t.end <= now && !rang[t.id]) { rang[t.id] = 1; newly = true; } });
+    if (newly) popup();
+    var ag = document.getElementById('tm-ago'), r = ringing(); if (ag && r[0]) ag.textContent = 'há ' + mmss(now - r[0].end);
+    chip();
   }
 
   /* ---------- RECADOS (aba) ---------- */
   function notesView(st) {
     var ns = st.notes || [];
-    return '<div class="pn-head"><h1>Recados da família</h1><button class="btn focusable" data-pn="new" data-autofocus>' + I.get('plus', 24) + ' Novo recado</button></div><div class="pn-grid">' +
+    var c = (st.settings && st.settings.content) || {}, live = PK.data.mode() === 'live', canWrite = !live || c.noteWrite !== false;
+    return '<div class="pn-head"><h1>Recados da família</h1>' + (canWrite ? '' : '<span class="pn-lock">' + I.get('bell', 20) + ' Escrever recados está desligado para esta TV</span>') + '<button class="btn focusable' + (canWrite ? '' : ' ghost') + '" data-pn="new" data-autofocus>' + I.get('plus', 24) + ' Novo recado</button></div><div class="pn-grid">' +
       (ns.length ? ns.slice(0, 8).map(function (n, i) {
         var by = member(st, n.by), seen = (n.seenBy || []).map(function (id) { return member(st, id); }).filter(Boolean);
         var missing = st.members.filter(function (m) { return (n.seenBy || []).indexOf(m.id) < 0 && m.id !== n.by; });
@@ -170,6 +216,7 @@ PK.plus = (function () {
   return {
     timersView: timersView, timerCmd: timerCmd, second: second, notesView: notesView, countdowns: countdowns, bills: bills,
     whoModal: whoModal, newNoteModal: newNoteModal, quickAddModal: quickAddModal, missionModal: missionModal, nm: nm, MISSIONS: MISSIONS,
-    openRecipe: openRecipe, recipeCmd: recipeCmd, recipeOpen: function () { return !!recipe; }, closeRecipe: function () { recipe = null; }, timersCount: function () { return timers.length; }
+    openRecipe: openRecipe, recipeCmd: recipeCmd, recipeOpen: function () { return !!recipe; }, closeRecipe: function () { recipe = null; }, timersCount: function () { return timers.length; },
+    stopRinging: function () { ringing().forEach(function (t) { timers = timers.filter(function (x) { return x.id !== t.id; }); delete rang[t.id]; }); U.store.set('tvTimers', timers); clearInterval(beepT); beepT = null; chip(); }
   };
 })();

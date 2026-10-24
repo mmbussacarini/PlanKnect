@@ -194,9 +194,9 @@
     if (v === 'agenda') el.innerHTML = V.agenda(state, ui.agenda);
     if (v === 'chores') el.innerHTML = V.chores(state);
     if (v === 'lists') { el.innerHTML = V.lists(state, ui.list); shareQr(ui.list || (state.lists[0] || {}).id); }
-    if (v === 'work') el.innerHTML = V.work(state, ui.project);
+    if (v === 'work') el.innerHTML = V.work(state, ui.project, ui.tview);
     if (v === 'deals') el.innerHTML = PK.deals.view(state);
-    if (v === 'weather') el.innerHTML = V.weather(state);
+    if (v === 'weather') el.innerHTML = PK.world.tab(state);
     if (v === 'notes') el.innerHTML = PK.plus.notesView(state);
     if (v === 'timers') el.innerHTML = PK.plus.timersView(state);
     if (v === 'watch') { el.innerHTML = V.watch(state); qr('vote-qr', C.baseUrl + '/tv/vote', 140); }
@@ -224,7 +224,7 @@
       if (main) { M.meeting.tick(state); M.ambient.tick(state, !document.querySelector('.overlay.active')); }
     }
     var bt = $('big-time'); if (bt) bt.textContent = U.hm(n);
-    PK.alerts.second(); PK.routine.second(); PK.plus.second();
+    PK.alerts.second(); PK.routine.second(); PK.plus.second(); PK.world.second();
   }, 1000);
   function nightAndShift(n) {
     var h = n.getHours(), nf = C.night.from, nt = C.night.to;
@@ -283,6 +283,7 @@
     if (ov.id === 'routine') PK.routine.close();
     if (ov.classList.contains('kn')) PK.jarvis.close();
     if (ov.id === 'recipe-layer') PK.plus.closeRecipe();
+    if (ov.id === 'tm-pop') { PK.plus.stopRinging(); if (ui.view === 'timers') render(); } // Voltar = Parar
     var back = overlayReturn.pop();
     if (back && document.body.contains(back)) PK.nav.focus(back, true); else PK.nav.reset();
     return true;
@@ -301,6 +302,7 @@
     'ai.listenLang': [['pt-BR', 'Português'], ['en-GB', 'English']],
     'ai.planknectVoice': [[true, 'PlanKnect (natural)'], [false, 'Voz da TV']],
     'ai.particles': [[true, 'Partículas 3D'], [false, 'Simples (TV mais leve)']],
+    'home.extra': [['note', 'Recado'], ['world', 'Relógio mundial'], ['sun', 'Pôr / nascer do sol']],
     'work.hdmi': [['auto', 'Automático (1º com sinal)'], [1, 'HDMI 1'], [2, 'HDMI 2'], [3, 'HDMI 3'], [4, 'HDMI 4']],
     'ambient.weather': [[true, 'Sim'], [false, 'Não']],
     'ambient.agenda': [[true, 'Sim'], [false, 'Não']]
@@ -362,6 +364,7 @@
       row('Testar microfone do controle', '▶', 'data-act="mic-test"', 'mic', 'Ditado do teclado da LG, voz no app e microfone USB') +
       '<div class="set-group">Tela</div>' +
       row('Fundo da tela inicial', optLabel('home.scene'), 'data-set="home.scene"', 'home', 'Fotos e vídeos reais em loop') +
+      row('Cartão extra na Início', optLabel('home.extra'), 'data-set="home.extra"', 'sun', 'Recado, relógio mundial ou pôr do sol') +
       row('Cenário do modo ambiente', optLabel('ambient.scene'), 'data-set="ambient.scene"', 'sparkle') +
       row('Modo ambiente depois de', optLabel('ambient.afterMin'), 'data-set="ambient.afterMin"', 'moon', 'Relógio e cenário quando ninguém usa a TV') +
       row('Testar modo ambiente', '▶', 'data-act="ambient-now"', 'play') +
@@ -398,7 +401,7 @@
     var go = function () {
       actions.forEach(function (a) {
         if (a.type === 'navigate') {
-          if (a.view === 'agenda') { if (a.mode) ui.agenda.mode = a.mode; if (a.member) ui.agenda.member = a.member; if (a.familyOnly !== undefined) ui.agenda.familyOnly = a.familyOnly; }
+          if (a.view === 'agenda') { if (a.mode) ui.agenda.mode = a.mode; if (a.member) ui.agenda.members = a.member === 'all' ? [] : [a.member]; if (a.familyOnly !== undefined) ui.agenda.familyOnly = a.familyOnly; }
           if (a.view === 'lists' && a.list) ui.list = a.list;
           setView(a.view, true);
         }
@@ -437,14 +440,14 @@
 
   /* ================= CLIQUES (OK = click) ================= */
   document.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('[data-pt],[data-pn],[data-pq],[data-nm],[data-pm],[data-rc],[data-tdo],[data-noteby],[data-seenby],[data-vote],[data-dev],[data-open],[data-subtask],[data-view],[data-app],[data-goto],[data-day],[data-project],[data-chore],[data-ag],[data-list],[data-item],[data-set],[data-say],[data-act]') : null;
+    var t = e.target.closest ? e.target.closest('[data-pt],[data-pn],[data-pq],[data-nm],[data-pm],[data-rc],[data-tdo],[data-noteby],[data-seenby],[data-vote],[data-dev],[data-open],[data-subtask],[data-tview],[data-dview],[data-wo],[data-view],[data-app],[data-goto],[data-day],[data-project],[data-chore],[data-ag],[data-list],[data-item],[data-set],[data-say],[data-act]') : null;
     if (!t) return;
     var a = function (n) { return t.getAttribute(n); };
     // ---- recursos vindos do nest-hub ----
     if (a('data-pt')) { PK.plus.timerCmd(a('data-pt')); render(); return; }
     if (a('data-pn')) {
       var pn = a('data-pn'), ci2 = pn.indexOf(':');
-      if (pn === 'new') PK.plus.newNoteModal();
+      if (pn === 'new') { var cc = (state.settings && state.settings.content) || {}; if (PK.data.mode() === 'live' && cc.noteWrite === false) { PK.toast('Ative “Escrever recados” para esta TV em planknect.com › Configurações › Dispositivos'); return; } PK.plus.newNoteModal(); }
       else if (pn.slice(0, ci2) === 'seen') PK.plus.whoModal(state, 'Quem está vendo este recado?', 'seenby', pn.slice(ci2 + 1));
       else if (pn.slice(0, ci2) === 'text') { closeOverlay(); PK.plus.whoModal(state, 'Quem está escrevendo?', 'noteby', pn.slice(ci2 + 1)); }
       return;
@@ -463,10 +466,13 @@
     if (a('data-dev')) { deviceCmd(a('data-dev')); return; }
     if (a('data-open')) { var o = a('data-open'), ci = o.indexOf(':'); PK.details.open(o.slice(0, ci), o.slice(ci + 1)); return; }
     if (a('data-subtask')) { toggleSubtask(t); return; }
-    if (a('data-view')) { setView(a('data-view'), true); PK.nav.focus(t, true); return; }
+    if (a('data-wo')) { var wr = PK.world.cmd(a('data-wo')); if (wr === 'render' || wr === 'render-later') { if (ui.view === 'weather') { render(true); if (wr === 'render') PK.nav.focus(document.querySelector('[data-wo="' + a('data-wo') + '"]'), true); } } return; }
+    if (a('data-view')) { if (a('data-wo-go')) PK.world.setSub(a('data-wo-go')); setView(a('data-view'), true); PK.nav.focus(t, true); return; }
     if (a('data-app')) { PK.tv.launch(a('data-app'), a('data-name')); return; }
     if (a('data-goto')) { setView(a('data-goto')); return; }
     if (a('data-day') !== null) { var d = V.dayDetail(state, +a('data-day'), ui.agenda); openModal({ title: d.title, body: d.body, wide: true, actions: [{ label: 'Fechar', act: 'close', ghost: true }] }); return; }
+    if (a('data-dview')) { PK.deals.setView(a('data-dview')); render(); PK.nav.focus(document.querySelector('[data-dview="' + a('data-dview') + '"]'), true); return; }
+    if (a('data-tview')) { ui.tview = a('data-tview'); var pnl = $('prio-panel'); pnl.innerHTML = V.prioPanel(state, ui.project, ui.tview); pnl.scrollTop = 0; PK.nav.focus(pnl.querySelector('[data-tview="' + ui.tview + '"]'), true); return; }
     if (a('data-project')) { var pj = a('data-project'); selectProject(pj); var first = $('prio-panel') && $('prio-panel').querySelector('.task-row, .pp-detail'); if (first) PK.nav.focus(first); return; } // OK no projeto: tarefas no painel da direita
     if (a('data-chore')) { toggleChore(t); return; }
     if (a('data-ag')) { agendaControl(a('data-ag')); return; }
@@ -607,7 +613,12 @@
     var p = v.split(':');
     if (p[0] === 'mode') { ui.agenda.mode = p[1]; ui.agenda.week = 0; }
     if (p[0] === 'week') { ui.agenda.mode = 'week'; ui.agenda.week = +p[1]; }
-    if (p[0] === 'member') ui.agenda.member = p[1];
+    if (p[0] === 'member') { // seleção múltipla: OK liga/desliga a pessoa; Todos limpa
+      ui.agenda.members = ui.agenda.members || [];
+      if (p[1] === 'all') ui.agenda.members = [];
+      else { var ix = ui.agenda.members.indexOf(p[1]); if (ix >= 0) ui.agenda.members.splice(ix, 1); else ui.agenda.members.push(p[1]); }
+      ui.agenda.member = 'all';
+    }
     if (p[0] === 'family') ui.agenda.familyOnly = !ui.agenda.familyOnly;
     var el = $('view-agenda');
     el.innerHTML = V.agenda(state, ui.agenda);
@@ -620,7 +631,7 @@
   function selectProject(pid) {
     ui.project = pid;
     each('.proj', function (el) { el.classList.toggle('selected', el.getAttribute('data-project') === pid); });
-    var panel = $('prio-panel'); if (panel) { panel.innerHTML = V.prioPanel(state, pid); panel.scrollTop = 0; }
+    var panel = $('prio-panel'); if (panel) { panel.innerHTML = V.prioPanel(state, pid, ui.tview); panel.scrollTop = 0; }
   }
   function selectList(id) {
     ui.list = id;

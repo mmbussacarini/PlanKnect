@@ -9,7 +9,8 @@ window.PK = PK;
 PK.deals = (function () {
   var U = PK.util, I = PK.icons, esc = U.esc;
   var STAGES = ['Prospecção', 'Proposta', 'Negociação', 'Due diligence', 'Fechamento'];
-  var cache = null, unavailable = false, forbidden = false, loading = null;
+  var cache = null, unavailable = false, forbidden = false, loading = null, dview = 'funnel';
+  var DVIEWS = [['funnel', 'Funil'], ['list', 'Lista'], ['temp', 'Temperatura'], ['project', 'Por projeto']];
 
   function d(days, h) { var x = U.addDays(U.startOfDay(new Date()), days); x.setHours(h || 10, 0, 0, 0); return x.toISOString(); }
   var DEMO = [
@@ -88,13 +89,35 @@ PK.deals = (function () {
     var head = '<div class="dl-head"><h2>' + I.get('briefcase', 30) + ' DEAL ROOM</h2><div class="dl-kpis">' +
       Object.keys(tot).slice(0, 3).map(function (k) { var c = k.split('|'); return '<div><b>' + money(tot[k].v, c[0]) + per(c[1]) + '</b><span>em aberto · ponderado ' + money(tot[k].w, c[0]) + per(c[1]) + '</span></div>'; }).join('') +
       '<div><b>' + list.length + '</b><span>deals</span></div>' + (next[0] ? '<div class="nx"><b>' + esc(next[0].next.text) + '</b><span>' + esc(next[0].company) + ' · ' + U.dueLabel(next[0].next.due, now) + '</span></div>' : '') + '</div></div>';
+    var seg = '<div class="tv-seg dl-seg">' + DVIEWS.map(function (v) { return '<button class="tv-b focusable' + (dview === v[0] ? ' on' : '') + '" data-dview="' + v[0] + '">' + v[1] + '</button>'; }).join('') + '</div>';
+    if (dview === 'list') return '<div class="dl">' + head + seg + listView(list, now) + '</div>';
+    if (dview === 'temp' || dview === 'project') return '<div class="dl">' + head + seg + '<div class="dl-cols">' + groupCols(list, now, dview) + '</div></div>';
     var cols = stages.map(function (stg, si) {
       var items = list.filter(function (x) { return x.stage === stg; });
       var sum = totals(items);
       return '<div class="dl-col"><div class="dl-col-h"><b>' + esc(stg) + '</b><span>' + items.length + (items.length ? ' · ' + Object.keys(sum).map(function (k) { var c = k.split('|'); return money(sum[k].v, c[0]) + per(c[1]); }).join(' + ') : '') + '</span><i style="width:' + Math.round((si + 1) / stages.length * 100) + '%"></i></div>' +
         items.map(function (x, i) { return card(x, now, si === 0 && i === 0); }).join('') + (items.length ? '' : '<div class="dl-none">—</div>') + '</div>';
     }).join('');
-    return '<div class="dl">' + head + '<div class="dl-cols">' + cols + '</div></div>';
+    return '<div class="dl">' + head + seg + '<div class="dl-cols">' + cols + '</div></div>';
+  }
+  // lista: prioridade, depois próxima ação mais próxima
+  function listView(list, now) {
+    var pr = { p1: 0, p2: 1, p3: 2 };
+    var rows = list.slice().sort(function (a, b) { var pa = pr[String(a.priority).toLowerCase()], pb = pr[String(b.priority).toLowerCase()]; pa = pa == null ? 3 : pa; pb = pb == null ? 3 : pb; return pa - pb || ((a.next && a.next.due) || Infinity) - ((b.next && b.next.due) || Infinity); });
+    return '<div class="dl-list">' + rows.map(function (x, i) {
+      var late = x.next && x.next.due && x.next.due < U.startOfDay(now);
+      return '<div class="dl-row focusable" data-open="deal:' + esc(x.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '><span class="dl-rp">' + (prio(x) || '—') + '</span><div class="dl-rm"><b>' + esc(x.title) + '</b><span>' + esc(x.company) + ' · ' + esc(x.stage) + '</span></div>' +
+        '<div class="dl-rn' + (late ? ' late' : '') + '">' + (x.next ? esc(x.next.text) + (x.next.due ? '<em>' + U.dueLabel(x.next.due, now) + '</em>' : '') : '<em>sem próxima ação</em>') + '</div>' +
+        '<div class="dl-rv">' + vals(x) + '</div><div class="dl-rt">' + (temp(x) || '') + '</div></div>';
+    }).join('') + '</div>';
+  }
+  // colunas por temperatura (quente/morno/frio) ou por projeto
+  function groupCols(list, now, by) {
+    var keys = by === 'temp' ? ['hot', 'warm', 'cold', ''] : [], label = { hot: 'Quente', warm: 'Morno', cold: 'Frio', '': 'Sem temperatura' }, g = {};
+    list.forEach(function (x) { var k = by === 'temp' ? String(x.temperature || '').toLowerCase() : (x.project || 'Sem projeto'); if (by === 'temp' && keys.indexOf(k) < 0) k = ''; if (!g[k]) { g[k] = []; if (by !== 'temp') keys.push(k); } g[k].push(x); });
+    return keys.filter(function (k) { return g[k] && g[k].length; }).map(function (k, ci) {
+      return '<div class="dl-col ' + (by === 'temp' ? 't-' + (k || 'none') : '') + '"><div class="dl-col-h"><b>' + esc(by === 'temp' ? label[k] : k) + '</b><span>' + g[k].length + '</span></div>' + g[k].map(function (x, i) { return card(x, now, ci === 0 && i === 0); }).join('') + '</div>';
+    }).join('');
   }
   function card(x, now, af) {
     var late = x.next && x.next.due && x.next.due < U.startOfDay(now), stale = x.last && now - x.last > 7 * 864e5;
@@ -145,5 +168,5 @@ PK.deals = (function () {
   }
   function get(id) { return (cache || []).filter(function (y) { return y.id === id; })[0]; }
 
-  return { all: function () { return cache || []; }, load: load, view: view, open: open, compact: compact, get: get, money: money, reset: function () { cache = null; } };
+  return { setView: function (v) { dview = v; }, all: function () { return cache || []; }, load: load, view: view, open: open, compact: compact, get: get, money: money, reset: function () { cache = null; } };
 })();

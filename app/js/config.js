@@ -34,10 +34,11 @@ PK.config = {
   },
 
   ambient: { afterMin: 10, scene: 'auto', weather: true, agenda: true }, // 0 = nunca
-  home: { scene: 'auto' },     // fundo da tela inicial: 'auto' | id de cenário | 'dark'
+  home: { extra: 'note', scene: 'auto' },     // fundo da tela inicial: 'auto' | id de cenário | 'dark'
 
   // Alfred (conceito Jarvis): nome, voz e momentos do briefing automático
   work: { hdmi: 'auto' },
+  world: { cities: ['São Paulo', 'Lisboa', 'Londres', 'Nova York', 'Xangai'] },
   ai: { name: 'Alfred', voice: true, lang: 'en-GB', listenLang: 'pt-BR', planknectVoice: true, particles: true, scene: 'library-warm' },
 
   // Avisos (por cima de tudo no app; por cima do Netflix via serviço da TV ou agente local)

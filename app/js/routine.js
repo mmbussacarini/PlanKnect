@@ -46,7 +46,7 @@ PK.routine = (function () {
       '<div class="rt-kids" style="grid-template-columns:repeat(' + Math.max(1, kids.length) + ',1fr)">' + kids.map(function (k, ki) {
         var mine = state.chores.filter(function (x) { return x.member === k.id && x.period === period; });
         var dn = mine.filter(function (x) { return x.done; }).length;
-        return '<div class="rt-kid" style="--k:' + k.color + '"><div class="rt-kid-h"><span class="kid-bubble">' + esc(k.initial) + '</span><b>' + esc(k.name) + '</b><span class="rt-n">' + dn + '/' + mine.length + '</span></div>' +
+        return '<div class="rt-kid" style="--k:' + k.color + '"><div class="rt-kid-h"><span class="kid-bubble" style="' + PK.face(k) + '">' + (k.photo ? '' : esc(k.initial)) + '</span><b>' + esc(k.name) + '</b><span class="rt-n">' + dn + '/' + mine.length + '</span></div>' +
           mine.map(function (x, i) {
             return '<div class="rt-ch focusable' + (x.done ? ' done' : '') + '" data-chore="' + esc(x.id) + '"' + (ki === 0 && i === 0 ? ' data-autofocus' : '') + '><span class="ms-ic">' + I.get(x.icon, 30) + '</span>' + esc(x.title) + '<span class="ms-check">' + I.get('check', 26, ' stroke-width="3.2"') + '</span></div>';
           }).join('') + (dn === mine.length && mine.length ? '<div class="rt-ok">' + I.get('sparkle', 26) + ' Tudo pronto!</div>' : '') + '</div>';

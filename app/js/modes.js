@@ -350,7 +350,7 @@ PK.modes = (function () {
       var ln = function (e) { var live = !e.allDay && e.start <= now && e.end > now; return '<div class="aa-e' + (!e.allDay && e.end <= now ? ' past' : '') + (live ? ' live' : '') + '"><b>' + (e.allDay ? 'dia' : U.hm(e.start)) + '</b><span>' + U.esc(e.private ? 'Ocupado' : e.title) + '</span></div>'; };
       ag = '<div class="amb-ag"><div class="aa-h">HOJE</div>' + (shared.length ? '<div class="aa-r"><div class="aa-w"><i class="aa-all">' + I.get('users', 20) + '</i><b>Família</b></div>' + shared.slice(0, 2).map(ln).join('') + '</div>' : '') +
         state.members.map(function (m) { var mine = evs.filter(function (e) { return shared.indexOf(e) < 0 && e.members && e.members.indexOf(m.id) >= 0; });
-          return '<div class="aa-r"><div class="aa-w"><i style="background:' + m.color + '">' + U.esc(m.initial) + '</i><b>' + U.esc(String(m.name).split(' ')[0]) + '</b></div>' + (mine.length ? mine.slice(0, 2).map(ln).join('') : '<div class="aa-free">livre</div>') + '</div>'; }).join('') + '</div>';
+          return '<div class="aa-r"><div class="aa-w"><i style="background:' + m.color + ';' + PK.face(m) + '">' + (m.photo ? '' : U.esc(m.initial)) + '</i><b>' + U.esc(String(m.name).split(' ')[0]) + '</b></div>' + (mine.length ? mine.slice(0, 2).map(ln).join('') : '<div class="aa-free">livre</div>') + '</div>'; }).join('') + '</div>';
     }
     var wx = '';
     if (S.get('ambient.weather') !== false && w) { var d0 = w.days[0]; wx = '<div class="amb-wx">' + I.get(I.weather(w.code, w.isDay), 56, ' stroke-width="1.4"') + '<b>' + w.temp + '°</b><div><span>' + I.weatherText(w.code) + '</span><small>↑ ' + d0.max + '°  ↓ ' + d0.min + '° · ' + (d0.rain || 0) + '% chuva</small></div></div>'; }

@@ -296,7 +296,7 @@
 .amb-card { font-size: 30px; margin-top: 22px; padding: 16px 26px; border-radius: 22px; background: rgba(255, 255, 255, .1); display: inline-block; animation: fadein 1s ease; }
 .amb-card .ic { margin: -5px 10px 0 0; color: #fcd34d; }
 .amb-hint { position: fixed; right: 60px; bottom: 50px; font-size: 20px; color: rgba(255, 255, 255, .4); }
-body.night .layer { filter: brightness(.6); }
+/* noite: a camada escura do #stage já cobre as telas cheias (filtro aqui deixava a TV lenta) */
 
 /* Confete */
 #fx { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 40; overflow: hidden; }

@@ -107,15 +107,16 @@ PK.views = (function () {
     if (kids.length) tiles.push('<div class="sh-tile focusable" data-goto="chores"><div class="sh-k">' + I.get('star', 18) + ' Missões</div><div class="sh-rings">' + kids.map(function (k) {
       var ch = state.chores.filter(function (c) { return c.member === k.id; }), dn = ch.filter(function (c) { return c.done; }).length, r = 22, ci = 2 * Math.PI * r;
       return '<span class="sh-ring"><svg viewBox="0 0 54 54" width="54" height="54"><circle cx="27" cy="27" r="' + r + '" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="5"/><circle cx="27" cy="27" r="' + r + '" fill="none" stroke="' + k.color +
-        '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + (ch.length ? ci * dn / ch.length : 0) + ' ' + ci + '" transform="rotate(-90 27 27)"/></svg><i style="color:' + k.color + '">' + esc(k.initial) + '</i></span>'; }).join('') +
+        '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + (ch.length ? ci * dn / ch.length : 0) + ' ' + ci + '" transform="rotate(-90 27 27)"/></svg><i style="color:' + k.color + ';' + (k.photo ? PK.face(k) + 'border-radius:50%;' : '') + '">' + (k.photo ? '' : esc(k.initial)) + '</i></span>'; }).join('') +
       '</div><div class="sh-s">' + kids.map(function (k) { var ch = state.chores.filter(function (c) { return c.member === k.id; }); return ch.filter(function (c) { return c.done; }).length + '/' + ch.length; }).join(' · ') + '</div></div>');
     var l = state.lists[0];
     var bl = PK.plus.bills(state);
     if (l) { var open = l.items.filter(function (i) { return !i.done; }); tiles.push('<div class="sh-tile focusable" data-open="list:' + l.id + '"><div class="sh-k">' + I.get('cart', 18) + ' ' + esc(l.name) + '</div><div class="sh-v"><b>' + open.length + '</b><small>ite' + (open.length === 1 ? 'm' : 'ns') + '</small></div><div class="sh-s' + (bl && (bl.late.length || bl.soon.length) ? ' warn' : '') + '">' + (bl && (bl.late.length || bl.soon.length) ? I.get('card', 14) + ' ' + (bl.late.length ? bl.late.length + ' conta(s) atrasada(s)' : bl.soon.length + ' conta(s) esta semana') : esc(open.slice(0, 3).map(function (i) { return i.title; }).join(', '))) + '</div></div>'); }
     var meal = state.meals.filter(function (m) { return U.sameDay(m.date, now); })[0];
     if (meal) { var ck = member(state, meal.cook); tiles.push('<div class="sh-tile focusable" data-open="meal:' + esc(meal.title) + '"><div class="sh-k">' + I.get('chef', 18) + ' Jantar</div><div class="sh-t">' + esc(meal.title) + '</div><div class="sh-s">' + (ck ? esc(ck.name) + ' cozinha' : '') + '</div></div>'); }
-    var note = state.notes[0];
-    if (note) { var nb = member(state, note.by); tiles.push('<div class="sh-tile note focusable" data-open="note:' + esc(note.id) + '"><div class="sh-k">' + I.get('note', 18) + ' Recado' + (nb ? ' de ' + esc(nb.name) : '') + '</div><div class="sh-n">' + esc(note.text) + '</div></div>'); }
+    var note = state.notes[0], extra = PK.settings.get('home.extra') || 'note';
+    if (extra !== 'note' && PK.world) { var xt = PK.world.homeTile(state, extra); if (xt) tiles.push(xt); }
+    else if (note) { var nb = member(state, note.by); tiles.push('<div class="sh-tile note focusable" data-open="note:' + esc(note.id) + '"><div class="sh-k">' + I.get('note', 18) + ' Recado' + (nb ? ' de ' + esc(nb.name) : '') + '</div><div class="sh-n">' + esc(note.text) + '</div></div>'); }
 
     var dock = '<div class="h-dock">' + PK.config.apps.map(function (a) {
       if (PK.tv.isTizen && a.samsungName) a = { id: a.samsung, samsung: a.samsung, name: a.samsungName, style: a.samsungStyle };
@@ -192,8 +193,9 @@ PK.views = (function () {
   function filterEvents(state, ui) {
     return state.events.filter(function (e) {
       if (ui.familyOnly && isWork(e)) return false;
-      if (ui.member !== 'all') {
-        if (e.members.length) return e.members.indexOf(ui.member) >= 0;
+      var sel = selected(ui);
+      if (sel.length) {
+        if (e.members.length) return e.members.some(function (id) { return sel.indexOf(id) >= 0; });
         // sem dono: só entra se for da família (não tarefa/marco de empresa)
         var fam = state.household && state.household.id;
         return !!fam && e.organizationId === fam && e.type !== 'task' && e.type !== 'milestone';
@@ -201,22 +203,25 @@ PK.views = (function () {
       return true;
     });
   }
+  // pessoas escolhidas na agenda (várias ao mesmo tempo); vazio = todos
+  function selected(ui) { return ui.members && ui.members.length ? ui.members : (ui.member && ui.member !== 'all' ? [ui.member] : []); }
   function agenda(state, ui) {
     var chips = '<div class="ag-bar">' +
       '<div class="seg"><button class="seg-b focusable' + (ui.mode === 'people' ? ' on' : '') + '" data-ag="mode:people"' + (ui.mode === 'people' ? ' data-autofocus' : '') + '>' + I.get('users', 26) + ' Hoje por pessoa</button>' +
       '<button class="seg-b focusable' + (ui.mode === 'week' && !ui.week ? ' on' : '') + '" data-ag="week:0"' + (ui.mode === 'week' ? ' data-autofocus' : '') + '>' + I.get('calendar', 26) + ' Esta semana</button>' +
       '<button class="seg-b focusable' + (ui.mode === 'week' && ui.week ? ' on' : '') + '" data-ag="week:1">Próxima</button></div>' +
-      '<div class="chips">' + (ui.mode === 'week' ? '<button class="chip focusable' + (ui.member === 'all' ? ' on' : '') + '" data-ag="member:all"><span class="av all">' + I.get('users', 22) + '</span>Todos</button>' +
-        state.members.map(function (m) {
-          return '<button class="chip focusable' + (ui.member === m.id ? ' on' : '') + '" data-ag="member:' + m.id + '" style="--m:' + m.color + '">' + av(m, 40) + esc(m.name) + '</button>';
-        }).join('') : '') +
+      '<div class="chips">' + (function () { var sel = selected(ui);
+        return '<button class="chip focusable' + (!sel.length ? ' on' : '') + '" data-ag="member:all"><span class="av all">' + I.get('users', 22) + '</span>Todos</button>' +
+          state.members.map(function (m) {
+            return '<button class="chip focusable' + (sel.indexOf(m.id) >= 0 ? ' on' : '') + '" data-ag="member:' + m.id + '" style="--m:' + m.color + '">' + av(m, 40) + esc(String(m.name).split(' ')[0]) + (sel.indexOf(m.id) >= 0 ? '<i class="chk">' + I.get('check', 16, ' stroke-width="3"') + '</i>' : '') + '</button>';
+          }).join(''); })() +
       '<button class="chip toggle focusable' + (ui.familyOnly ? ' on' : '') + '" data-ag="family"><span class="tg"><i></i></span>Só família</button></div></div>';
     return chips + (ui.mode === 'people' ? people(state, ui) : week(state, ui));
   }
 
   function week(state, ui) {
     var now = new Date(), ws = U.addDays(U.weekStart(now), 7 * (ui.week || 0)), evAll = filterEvents(state, ui), cols = [];
-    var kid = ui.member && ui.member !== 'all' && (state.members.filter(function (m) { return m.id === ui.member && m.kid; })[0]);
+    var sel = selected(ui), kids = state.members.filter(function (m) { return m.kid && sel.indexOf(m.id) >= 0; }), kid = kids[0];
     for (var i = 0; i < 7; i++) {
       var day = U.addDays(ws, i), isToday = U.sameDay(day, now), past = day < U.startOfDay(now);
       var evs = evAll.filter(function (e) { return U.sameDay(e.start, day); });
@@ -233,8 +238,8 @@ PK.views = (function () {
         }).join('') + (evs.length > MAX ? '<div class="wk-more">+' + (evs.length - MAX) + ' mais</div>' : '') +
         (!evs.length ? '<div class="wk-free">Livre</div>' : '') + '</div>' +
         (meal ? '<div class="wk-meal">' + I.get('chef', 20) + ' ' + esc(meal.title) + '</div>' : '') + (function () {
-          var mine = (state.choresAll || state.chores).filter(function (c) { return (kid ? c.member === kid.id : true) && c.due && U.sameDay(U.toDate(String(c.due).slice(0, 10) + 'T12:00:00'), day); });
-          if (!mine.length || (!kid && ui.member !== 'all')) return '';
+          var mine = (state.choresAll || state.chores).filter(function (c) { return (kids.length ? kids.some(function (k) { return k.id === c.member; }) : !sel.length) && c.due && U.sameDay(U.toDate(String(c.due).slice(0, 10) + 'T12:00:00'), day); });
+          if (!mine.length) return '';
           return '<div class="wk-ch">' + I.get('star', 18) + ' ' + mine.length + ' miss' + (mine.length > 1 ? 'ões' : 'ão') + (kid ? '<small>' + mine.slice(0, 3).map(function (c) { return esc(c.title); }).join(' · ') + (mine.length > 3 ? '…' : '') + '</small>' : '') + '</div>';
         })() + '</div>');
     }
@@ -244,7 +249,8 @@ PK.views = (function () {
   function people(state, ui) {
     var now = new Date(), evs = filterEvents(state, { member: 'all', familyOnly: ui.familyOnly })
       .filter(function (e) { return U.sameDay(e.start, now); });
-    var cols = state.members.map(function (m) {
+    var sel = selected(ui), who = sel.length ? state.members.filter(function (m) { return sel.indexOf(m.id) >= 0; }) : state.members;
+    var cols = who.map(function (m) {
       var mine = evs.filter(function (e) { return e.members.indexOf(m.id) >= 0; });
       var allDay = mine.filter(function (e) { return e.allDay; }), timed = mine.filter(function (e) { return !e.allDay; });
       var nowShown = false, html = '';
@@ -265,7 +271,7 @@ PK.views = (function () {
         allDay.map(function (e) { return '<div class="pp-all focusable" data-open="event:' + esc(e.id) + '" style="--c:' + color(e) + '">' + esc(title(e)) + '</div>'; }).join('') +
         '<div class="pp-list">' + (html || '<div class="wk-free">Livre</div>') + '</div></div>';
     });
-    return '<div class="pp-grid" style="grid-template-columns:repeat(' + state.members.length + ',1fr)">' + cols.join('') + '</div>';
+    return '<div class="pp-grid" style="grid-template-columns:repeat(' + who.length + ',1fr)">' + cols.join('') + '</div>';
   }
   function nowLine(now) { return '<div class="pp-now"><span>' + U.hm(now) + '</span></div>'; }
 
@@ -350,7 +356,7 @@ PK.views = (function () {
         var sc = SC[k.id], stars = sc.week, goal = sc.goal;
         var pct = Math.min(100, Math.round(stars / goal * 100));
         return '<div class="kid-card' + (allDone ? ' all-done' : '') + '" style="--k:' + k.color + '" data-kid="' + k.id + '">' +
-          '<div class="kid-top"><div class="kid-bubble">' + esc(k.initial) + '</div><div class="kid-id"><div class="kid-name">' + esc(k.name) + '</div>' +
+          '<div class="kid-top"><div class="kid-bubble" style="' + PK.face(k) + '">' + (k.photo ? '' : esc(k.initial)) + '</div><div class="kid-id"><div class="kid-name">' + esc(k.name) + '</div>' +
           '<div class="kid-badges"><span class="kb star">' + I.get('star', 24) + ' ' + stars + '</span>' +
           (k.streak ? '<span class="kb flame">' + I.get('flame', 24) + ' ' + k.streak + ' dias</span>' : '') + '</div></div>' +
           '<div class="kid-count"><b>' + done + '</b>/' + mine.length + '</div></div>' +
@@ -486,46 +492,64 @@ PK.views = (function () {
   function inGroup(pid, t) {
     if (!pid || pid === 'all') return true;
     if (pid.indexOf('person:') === 0) { var id = pid.slice(7); return t.assignee === id || (t.personal || []).indexOf(id) >= 0; }
+    if (pid.indexOf('org:') === 0) return t.org === pid.slice(4);
     return t.projectId === pid;
   }
   function statusLabel(s) { return ({ planning: 'Planejamento', active: 'Em andamento', in_progress: 'Em andamento', on_hold: 'Pausado', completed: 'Concluído', review: 'Em revisão' })[s] || s; }
-  function work(state, selected) {
+  function work(state, selected, tview) {
     var now = new Date();
     var open = state.tasks.filter(function (t) { return t.status !== 'done'; });
     var people = (state.members || []).filter(function (m) { return !m.kid && (m.dest || open.some(function (t) { return t.assignee === m.id; })); })
       .map(function (m) { return { id: 'person:' + m.id, name: String(m.name).split(' ')[0], org: m.dest ? 'Quadro pessoal + atribuídas' : 'Atribuídas a ' + String(m.name).split(' ')[0], color: m.color || '#a78bfa', person: m }; });
     var cnt = function (p) { return open.filter(function (t) { return t.projectId === p.id; }).length; };
     var projs = state.projects.slice().sort(function (a, b) { return cnt(b) - cnt(a); });
-    var list = [{ id: 'all', name: 'Todas as prioridades', org: open.length + ' tasks abertas', all: true }].concat(people, projs);
+    var orgs = {}; open.forEach(function (t) { if (t.org) orgs[t.org] = (orgs[t.org] || 0) + 1; });
+    var orgList = Object.keys(orgs).sort(function (a, b) { return orgs[b] - orgs[a]; }).map(function (o) { return { id: 'org:' + o, name: o, org: 'Organização', color: '#94a3b8', orgItem: true }; });
+    var list = [{ id: 'all', name: 'Todas as prioridades', org: open.length + ' tasks abertas', all: true }].concat(people, orgList, projs);
     var left = list.map(function (p, i) {
       var count = open.filter(function (t) { return inGroup(p.id, t); }).length;
       var overdue = open.filter(function (t) { return inGroup(p.id, t) && t.due && t.due < U.startOfDay(now); }).length;
-      return '<div class="proj focusable' + (selected === p.id ? ' selected' : '') + (p.person ? ' person' : '') + (!p.all && !count ? ' empty' : '') + '" data-project="' + p.id + '"' + (i === 0 ? ' data-autofocus' : '') + ' style="--c:' + (p.color || '#94a3b8') + '">' +
+      return '<div class="proj focusable' + (selected === p.id ? ' selected' : '') + (p.person ? ' person' : '') + (p.orgItem ? ' orgi' : '') + (!p.all && !count ? ' empty' : '') + '" data-project="' + p.id + '"' + (i === 0 ? ' data-autofocus' : '') + ' style="--c:' + (p.color || '#94a3b8') + '">' +
         '<div class="proj-top">' + (p.person ? av(p.person, 34) : '') + '<span class="proj-name">' + esc(p.name) + '</span><span class="proj-count">' + count + '</span></div>' +
         '<div class="proj-org">' + esc(p.org || '') + (overdue ? ' · <b class="red">' + overdue + ' atrasada' + (overdue > 1 ? 's' : '') + '</b>' : '') + '</div>' +
-        (p.person ? '' : p.all ? '' : (p.progress != null ? '<div class="bar"><i style="width:' + Math.round(p.progress * 100) + '%"></i></div>' : '') +
+        (p.person || p.orgItem ? '' : p.all ? '' : (p.progress != null ? '<div class="bar"><i style="width:' + Math.round(p.progress * 100) + '%"></i></div>' : '') +
           '<div class="proj-ms">' + (function () { var nx = open.filter(function (t) { return t.projectId === p.id && t.due && t.due >= U.startOfDay(now); }).sort(function (a, b) { return a.due - b.due; })[0];
             return p.milestone ? I.get('flag', 20) + ' ' + esc(p.milestone.title) + ' · ' + U.dueLabel(U.toDate(p.milestone.due), now) : nx ? I.get('calendar', 18) + ' Próxima: ' + esc(nx.title).slice(0, 34) + ' · ' + U.dueLabel(nx.due, now) : (p.status ? esc(statusLabel(p.status)) : ''); })() + '</div>') +
         '</div>';
     }).join('');
     return '<div class="proj-grid"><div class="proj-list"><h2>' + chevron() + 'PROJETOS EM ABERTO</h2>' + left + '</div>' +
-      '<div class="card prio-panel" id="prio-panel">' + prioPanel(state, selected || 'all') + '</div></div>';
+      '<div class="card prio-panel" id="prio-panel">' + prioPanel(state, selected || 'all', tview) + '</div></div>';
   }
-  function prioPanel(state, pid) {
-    var now = new Date(), sod = U.startOfDay(now), eow = U.addDays(sod, 7);
+  var TVIEWS = [['prio', 'Prioridades'], ['today', 'Hoje'], ['late', 'Atrasadas'], ['week', 'Esta semana'], ['org', 'Por organização'], ['person', 'Por pessoa']];
+  function prioPanel(state, pid, tv) {
+    var now = new Date(), sod = U.startOfDay(now), eow = U.addDays(sod, 7); tv = tv || 'prio';
     var open = sortTasks(state.tasks.filter(function (t) { return t.status !== 'done' && inGroup(pid, t); }), now);
-    var groups = [
+    var groups;
+    if (tv === 'today') groups = [['Hoje', open.filter(function (t) { return t.due && U.sameDay(t.due, now); }), '']];
+    else if (tv === 'late') groups = [['Atrasadas', open.filter(function (t) { return t.due && t.due < sod; }), 'red']];
+    else if (tv === 'week') groups = [0, 1, 2, 3, 4, 5, 6].map(function (i) { var d = U.addDays(sod, i); return [i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : U.DAYS[d.getDay()] + ' ' + d.getDate(), open.filter(function (t) { return t.due && U.sameDay(t.due, d); }), '']; });
+    else if (tv === 'org' || tv === 'person') {
+      var by = {}, order = [];
+      open.forEach(function (t) {
+        var k = tv === 'org' ? (t.org || 'Sem organização') : ((state.members.filter(function (m) { return m.id === t.assignee; })[0] || {}).name || 'Sem responsável');
+        if (!by[k]) { by[k] = []; order.push(k); } by[k].push(t);
+      });
+      order.sort(function (a, b) { return by[b].length - by[a].length; });
+      groups = order.map(function (k) { return [k, by[k], /^Sem /.test(k) ? 'muted' : '']; });
+    } else groups = [
       ['Atrasadas', open.filter(function (t) { return t.due && t.due < sod; }), 'red'],
       ['Hoje', open.filter(function (t) { return t.due && U.sameDay(t.due, now); }), ''],
       ['Próximos 7 dias', open.filter(function (t) { return t.due && t.due >= sod && t.due < eow && !U.sameDay(t.due, now); }), ''],
       ['Depois / sem data', open.filter(function (t) { return !t.due || t.due >= eow; }), 'muted']
     ];
+    var tabs = '<div class="tv-seg">' + TVIEWS.map(function (v) { return '<button class="tv-b focusable' + (tv === v[0] ? ' on' : '') + '" data-tview="' + v[0] + '">' + v[1] + '</button>'; }).join('') + '</div>';
     var p = state.projects.filter(function (x) { return x.id === pid; })[0];
     if (!p && /^person:/.test(pid)) { var pm = (state.members || []).filter(function (m) { return 'person:' + m.id === pid; })[0]; if (pm) p = { name: 'Tarefas de ' + String(pm.name).split(' ')[0] }; }
     var real = state.projects.filter(function (x) { return x.id === pid; })[0];
-    return '<div class="pp-head"><h2>' + chevron() + 'PRIORIDADES' + (p ? ' · ' + esc(p.name.toUpperCase()) : '') + '</h2>' + (real ? '<button class="btn ghost focusable pp-detail" data-open="project:' + esc(real.id) + '">' + I.get('briefcase', 22) + ' Detalhes do projeto ›</button>' : '') + '</div>' +
+    if (!p && /^org:/.test(pid)) p = { name: pid.slice(4) };
+    return tabs + '<div class="pp-head"><h2>' + chevron() + (TVIEWS.filter(function (v) { return v[0] === tv; })[0][1]).toUpperCase() + (p ? ' · ' + esc(p.name.toUpperCase()) : '') + '</h2>' + (real ? '<button class="btn ghost focusable pp-detail" data-open="project:' + esc(real.id) + '">' + I.get('briefcase', 22) + ' Detalhes do projeto ›</button>' : '') + '</div>' +
       groups.filter(function (g) { return g[1].length; }).map(function (g) {
-        return '<div class="pg"><div class="pg-h ' + g[2] + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(function (t) { return taskRow(t, now, real ? 'inproj' : ''); }).join('') + '</div>';
+        return '<div class="pg"><div class="pg-h ' + g[2] + '">' + esc(g[0]) + ' <span>' + g[1].length + '</span></div>' + g[1].map(function (t) { return taskRow(t, now, real ? 'inproj' : ''); }).join('') + '</div>';
       }).join('') + (open.length ? '' : '<div class="empty">' + (real ? 'Nenhuma tarefa aberta neste projeto.<br><small>Abra “Detalhes do projeto” para ver marcos e equipe.</small>' : /^person:/.test(pid) ? 'Nada pendente no quadro pessoal.<br><small>Tarefas criadas no quadro pessoal dessa pessoa aparecem aqui.</small>' : 'Nada pendente aqui.') + '</div>');
   }
 

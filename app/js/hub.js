@@ -32,7 +32,7 @@
   function qr(id, text, size) { var el = $(id); if (!el) return; el.innerHTML = ''; if (window.QRCode) new window.QRCode(el, { text: text, width: size, height: size, colorDark: '#0b1230', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); }
   function member(id) { return state.members.filter(function (m) { return m.id === id; })[0]; }
   function first(m) { return m ? String(m.name).split(' ')[0] : ''; }
-  function av(m, s) { return m ? '<span class="av" style="background:' + m.color + ';width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s * .45) + 'px">' + esc(m.initial) + '</span>' : ''; }
+  function av(m, s) { return m ? '<span class="av" style="background:' + m.color + ';' + PK.face(m) + 'width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s * .45) + 'px">' + (m.photo ? '' : esc(m.initial)) + '</span>' : ''; }
   function mmss(ms) { var s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600); return (h ? h + ':' + U.pad(Math.floor(s % 3600 / 60)) : Math.floor(s / 60)) + ':' + U.pad(s % 60); }
   function until(ms) {
     if (ms <= 0) return 'agora';

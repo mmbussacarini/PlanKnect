@@ -40,7 +40,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .g1 { width: 700px; height: 700px; left: -120px; top: -160px; background: #1d4ed8; opacity: .35; }
 .g2 { width: 520px; height: 520px; right: 200px; bottom: -260px; background: #4c1d95; opacity: .35; }
 .g3 { width: 420px; height: 420px; right: -120px; top: 80px; background: #1e3a8a; opacity: .3; }
-body.night #stage { filter: brightness(.55) saturate(.8); }
+/* noite: camada escura por cima (filtro na tela inteira deixava a TV lenta) */
+body.night #stage:after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 10, .42); pointer-events: none; z-index: 80; }
 
 /* foco (controle remoto) */
 .focusable { transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s; outline: none; }
