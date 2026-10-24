@@ -827,3 +827,8 @@ body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }
 .sv-host:after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; opacity: .3; pointer-events: none; }
 .sv-host.sv-night:after { opacity: .6; }
 .amb-dark { z-index: 2; color: rgba(230,236,255,.6); text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+
+/* moldura: agenda e dica ficam numa camada própria (o bloco do relógio se move e não pode conter 'fixed') */
+.amb-side { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; transition: transform 3s ease-in-out; }
+.amb-side .amb-ag { position: absolute; max-height: 720px; overflow: hidden; }
+.amb-side .amb-hint { position: absolute; }

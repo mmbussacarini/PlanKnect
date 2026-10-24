@@ -295,7 +295,7 @@ PK.modes = (function () {
     var el = $('ambient');
     var photos = state.photos || [];
     el.innerHTML = (photos.length ? '<div class="amb-photo kbp on" id="amb-p0"></div><div class="amb-photo kbp" id="amb-p1"></div>' : '<div id="amb-scene" class="scene-host"></div>') +
-      '<div class="amb-shade"></div><div class="amb-content" id="amb-content"></div><div class="amb-memory" id="amb-memory"></div>';
+      '<div class="amb-shade"></div><div class="amb-side" id="amb-side"></div><div class="amb-content" id="amb-content"></div><div class="amb-memory" id="amb-memory"></div>';
     ambient.photoIdx = 0;
     if (photos.length) showPhoto(photos, 0);
     if (!photos.length) PK.scenes.mount($('amb-scene'), S.get('ambient.scene') === 'auto' ? PK.scenes.auto(state.weather) : S.get('ambient.scene'));
@@ -339,6 +339,7 @@ PK.modes = (function () {
     var c = $('amb-content'), m = $('amb-memory');
     if (c) c.style.transform = 'translate(' + rnd(60) + 'px,' + rnd(40) + 'px)';
     if (m) m.style.transform = 'translate(' + rnd(40) + 'px,' + rnd(24) + 'px)';
+    var sd = $('amb-side'); if (sd) sd.style.transform = 'translate(' + rnd(30) + 'px,' + rnd(24) + 'px)';
   }
   function nightNow() { var h = new Date().getHours(), n = PK.config.night || { from: 22, to: 6 }; return n.from > n.to ? (h >= n.from || h < n.to) : (h >= n.from && h < n.to); }
   function shouldDark() {
@@ -383,9 +384,10 @@ PK.modes = (function () {
     }
     var wx = '';
     if (S.get('ambient.weather') !== false && w) { var d0 = w.days[0]; wx = '<div class="amb-wx">' + I.get(I.weather(w.code, w.isDay), 56, ' stroke-width="1.4"') + '<b>' + w.temp + '°</b><div><span>' + I.weatherText(w.code) + '</span><small>↑ ' + d0.max + '°  ↓ ' + d0.min + '° · ' + (d0.rain || 0) + '% chuva</small></div></div>'; }
-    c.innerHTML = ag + '<div class="amb-time">' + U.hm(now) + '</div><div class="amb-date">' + U.longDate(now) + '</div>' + wx +
+    var side = $('amb-side'); if (side) side.innerHTML = ag + '<div class="amb-hint">Aperte qualquer botão</div>'; // fora do bloco que se move (senão empilha)
+    c.innerHTML = '<div class="amb-time">' + U.hm(now) + '</div><div class="amb-date">' + U.longDate(now) + '</div>' + wx +
       (next ? '<div class="amb-next"><span>' + (next.start <= now ? 'Agora' : U.hm(next.start)) + '</span>' + U.esc(PK.views.title(next)) + '</div>' : '') +
-      (card ? '<div class="amb-card">' + card + '</div>' : '') + '<div class="amb-hint">Aperte qualquer botão</div>';
+      (card ? '<div class="amb-card">' + card + '</div>' : '');
   }
   function input() { ambient.lastInput = Date.now(); }
   function tickAmbient(state, canEnter) {
