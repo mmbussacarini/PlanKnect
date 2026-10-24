@@ -92,13 +92,14 @@ PK.music = (function () {
   function tile() { // prateleira da tela inicial (TV)
     start();
     var t = now && now.track;
-    return '<div class="sh-tile music focusable" data-act="music-open"><div class="sh-k">' + I.get('music', 18) + (now && now.playing ? ' Tocando agora' : ' Música') + '</div>' +
-      (t ? '<div class="mu-tl">' + cover(t, 58) + '<div><b id="mu-t-title">' + esc(t.title) + '</b><span>' + esc(t.artist) + '</span></div></div>' : '<div class="sh-s">' + esc(err || 'Spotify — toque para abrir') + '</div>') + '</div>';
+    var off = !t && (err || live());
+    return '<div class="sh-tile music focusable' + (off ? ' off' : '') + '" data-act="music-open"><div class="sh-k">' + I.get('music', 18) + (off ? ' Spotify · não conectado' : now && now.playing ? ' Tocando agora' : ' Música') + (now && now.demo ? ' <em class="mu-demo">DEMO</em>' : '') + '</div>' +
+      (t ? '<div class="mu-tl">' + cover(t, 58) + '<div><b id="mu-t-title">' + esc(t.title) + '</b><span>' + esc(t.artist) + '</span></div></div>' : '<div class="sh-s">' + esc(err || 'Aguardando o PlanKnect') + '</div>') + '</div>';
   }
   function chip() { // tela inicial do Nest Hub
     start();
     var t = now && now.track; if (!t && !err) return '';
-    return '<button class="chip mu-chip" data-mu="open">' + (t ? cover(t, 26) + ' ' + esc(t.title) + (now.playing ? '' : ' (pausado)') : I.get('music', 22) + ' Música') + '</button>';
+    return '<button class="chip mu-chip" data-mu="open">' + (t ? cover(t, 26) + ' ' + esc(t.title) + (now.playing ? '' : ' (pausado)') : I.get('music', 22) + ' Spotify não conectado') + '</button>';
   }
   function player(compact) {
     start();
@@ -122,8 +123,11 @@ PK.music = (function () {
           '<div class="mu-prog"><i style="width:' + (100 * progress() / (t.duration_ms || 1)) + '%"></i></div><div class="mu-times"><span id="mu-pos">' + mmss(progress()) + '</span><span>' + mmss(t.duration_ms) + '</span></div>' +
           '<div class="mu-ctl"><button class="focusable" data-mu="previous">' + I.get('prev', ic) + '</button><button class="focusable mu-pp" data-mu="toggle" data-autofocus>' + I.get(now.playing ? 'pause' : 'play', ic + 8) + '</button><button class="focusable" data-mu="next">' + I.get('next', ic) + '</button>' +
           '<button class="focusable mu-vol" data-mu="vol:-10">' + I.get('minus', compact ? 22 : 28) + '</button><span class="mu-v">' + ((now.device && now.device.volume != null) ? now.device.volume + '%' : '') + '</span><button class="focusable mu-vol" data-mu="vol:10">' + I.get('plus', compact ? 22 : 28) + '</button></div>' +
-          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc((now.device && now.device.name) || 'Spotify') + (now.demo ? ' · demonstração' : '') + '</div></div></div>'
-        : '<div class="mu-empty">' + I.get('music', 64) + '<b>' + esc(err || 'Nada tocando agora') + '</b><span>Escolha uma playlist ou diga “Alfred, toca a playlist da família”.</span><button class="focusable" data-mu="pane:lists" data-autofocus>' + I.get('list', 22) + ' Ver playlists</button></div>';
+          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc((now.device && now.device.name) || 'Spotify') + (now.demo ? ' · <em class="mu-demo">DEMONSTRAÇÃO — sem Spotify</em>' : '') + '</div></div></div>'
+        : (err ? '<div class="mu-empty off">' + I.get('music', 64) + '<b>Spotify ainda não está conectado</b><span>' + esc(err) + '</span>' +
+            '<ol class="mu-steps"><li>O PlanKnect precisa ganhar a integração com o Spotify (pedido enviado ao Lovable).</li><li>Depois: PlanKnect › Integrações › Spotify › Conectar (conta Premium).</li><li>Ative “Música” para esta tela em PlanKnect › Dispositivos.</li></ol>' +
+            '<button class="focusable" data-mu="retry" data-autofocus>' + I.get('refresh', 22) + ' Tentar de novo</button></div>'
+          : '<div class="mu-empty">' + I.get('music', 64) + '<b>Nada tocando agora</b><span>Escolha uma playlist ou diga “Alfred, toca a playlist da família”.</span><button class="focusable" data-mu="pane:lists" data-autofocus>' + I.get('list', 22) + ' Ver playlists</button></div>');
     }
     return '<div class="mu-player' + (compact ? ' compact' : '') + '">' + head + (err && t ? '<div class="mu-err">' + esc(err) + '</div>' : '') + body + '</div>';
   }
@@ -144,6 +148,7 @@ PK.music = (function () {
   // data-mu="toggle|next|previous|vol:+10|pane:lists|playlist:<uri>|transfer:<id>"
   function cmd(arg) {
     var k = String(arg).split(':')[0], v = String(arg).slice(k.length + 1);
+    if (k === 'retry') { return load().then(rerender); }
     if (k === 'pane') { pane = v; if (v === 'lists') lists = lists; if (v === 'devs') devs = null; rerender(); return; }
     if (k === 'vol') { var cur = (now && now.device && now.device.volume) || 50; return control('volume', Math.max(0, Math.min(100, cur + (+v)))); }
     if (k === 'playlist') { pane = 'now'; return control('playlist', v).then(rerender, rerender); }

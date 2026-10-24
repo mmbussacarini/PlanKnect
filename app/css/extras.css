@@ -876,3 +876,7 @@ body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }
 .mu-empty button { margin-top: 22px; display: inline-flex; align-items: center; padding: 14px 22px; border-radius: 14px; background: rgba(30,215,96,.2); color: #fff; font-size: 20px; }
 .mu-wait, .mu-err { font-size: 20px; color: rgba(255,255,255,.65); padding: 10px 0; }
 .mu-err { color: #fcd34d; }
+.mu-demo { font-style: normal; font-size: 13px; font-weight: 800; letter-spacing: 1px; padding: 2px 8px; border-radius: 8px; background: rgba(250,204,21,.2); color: #fde68a; margin-left: 6px; }
+.sh-tile.music.off .sh-k .ic { color: rgba(255,255,255,.5); }
+.mu-steps { text-align: left; font-size: 19px; color: rgba(255,255,255,.75); margin: 18px 0 0; padding-left: 26px; max-width: 900px; }
+.mu-steps li { margin: 6px 0; }

@@ -536,3 +536,5 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .mu-empty button { margin-top: 14px; display: inline-flex; align-items: center; padding: 10px 16px; border-radius: 12px; background: rgba(30,215,96,.2); font-size: 16px; }
 .mu-wait, .mu-err { font-size: 16px; color: rgba(255,255,255,.65); padding: 6px 0; }
 .mu-err { color: #fcd34d; }
+.mu-demo { font-style: normal; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: rgba(250,204,21,.2); color: #fde68a; margin-left: 4px; }
+.mu-steps { text-align: left; font-size: 15px; color: rgba(255,255,255,.75); margin: 12px 0 0; padding-left: 22px; }
