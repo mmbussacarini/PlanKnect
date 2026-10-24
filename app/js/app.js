@@ -395,6 +395,7 @@
   function openVoice() { PK.jarvis.listen(); }
   // Executa o comando no PlanKnect (ou no demo) e aplica as ações. Ações que trocam de tela esperam o Alfred terminar a frase.
   function alfredCommand(text, o) {
+    var mi = PK.music && PK.music.intent(text); if (mi) return mi; // música: responde na hora, sem esperar a IA
     return PK.data.assistant(text, { state: state, view: ui.view, lang: o && o.lang, meeting_id: o && o.meeting_id }).then(function (r) {
       var acts = r.actions || [], moves = acts.some(function (x) { return /navigate|meeting|work|launch|camera/.test(x.type); });
       if (PK.workmode.active()) { applyActions(acts.filter(function (x) { return !/navigate|launch|camera/.test(x.type); })); return r; } // no modo Computador, não troca de tela
@@ -408,6 +409,7 @@
     var needRefresh = actions.some(function (a) { return a.type === 'refresh'; });
     var go = function () {
       actions.forEach(function (a) {
+        if (a.type === 'music' && PK.music) { PK.music.act(a); return; }
         if (a.type === 'navigate') {
           if (a.view === 'agenda') { if (a.mode) ui.agenda.mode = a.mode; if (a.member) ui.agenda.members = a.member === 'all' ? [] : [a.member]; if (a.familyOnly !== undefined) ui.agenda.familyOnly = a.familyOnly; }
           if (a.view === 'lists' && a.list) ui.list = a.list;
@@ -533,6 +535,7 @@
     }
     if (act === 'meeting-now') { closeOverlay(); M.meeting.toggle(true, state); }
     if (act === 'ambient-now') { closeOverlay(); M.ambient.enter(state); }
+    if (act === 'music-open') { var mo = openModal({ title: I.get('music', 36) + ' Música', body: '<div id="mu-host"></div>', actions: [{ label: 'Fechar', act: 'close', ghost: true }] }, 'wide mu-modal'); PK.music.mount(mo.querySelector('#mu-host')); }
     if (act === 'saver-now') { closeOverlay(); M.ambient.saver(state); }
     if (act === 'reset-demo') { PK.mock.reset(); closeOverlay(); refreshData(); PK.toast('Demo restaurado'); }
     var arg = a('data-arg');

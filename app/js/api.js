@@ -268,6 +268,7 @@ PK.api = (function () {
     // Alfred propõe, a pessoa confirma: nada é gravado antes disso (expira em 15 min → 409)
     proposal: function (id, action) { return req('POST', '/api/tv/assistant/proposals/' + enc(id), { action: action }); },
     // Voz do PlanKnect (mesma do KnectAI no site): texto → áudio. Resposta { audio: <base64>, mime } ou { url }
+    music: function (m, p, b) { return req(m, '/api/tv/music' + p, b); }, // Spotify via PlanKnect (Round 4)
     tts: function (text, o) { return req('POST', '/api/tv/voice/tts', { text: text, voice: (o && o.voice) || 'alfred', lang: (o && o.lang) || 'en-GB', format: 'mp3' }); },
     // Memória do Alfred ("lembra que…"), guardada no PlanKnect
     aiMemory: function () { return req('GET', '/api/tv/ai/memory'); },

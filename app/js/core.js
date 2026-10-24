@@ -140,6 +140,12 @@ PK.icons = (function () {
     sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
     send: '<path d="M4 12l16-8-6 16-2.5-6.5L4 12z"/><path d="M11.5 13.5L20 4"/>',
     monitor: '<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/>',
+    music: '<path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+    pause: '<rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/>',
+    next: '<path d="M5 5l10 7-10 7z" fill="currentColor"/><path d="M19 5v14"/>',
+    prev: '<path d="M19 5L9 12l10 7z" fill="currentColor"/><path d="M5 5v14"/>',
+    minus: '<path d="M5 12h14"/>',
+    speaker: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><circle cx="12" cy="14.5" r="3.5"/><circle cx="12" cy="7" r="1"/>',
     airplay: '<path d="M6 17H4.5A2 2 0 0 1 2.5 15V5.5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2H18"/><path d="M12 14l5 6.5H7z"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -284,6 +290,12 @@ PK.nav = (function () {
     return nodes.filter(function (el) { return !el.disabled && el.offsetParent !== null; });
   }
   var lastInView = {};
+  // a página (1920×1080 escalada) nunca rola: scrollIntoView/foco de input às vezes empurram tudo pro lado ou pra cima
+  function pinPage() {
+    var de = document.documentElement, b = document.body, st = document.getElementById('stage'), kn = document.querySelector('.kn.on');
+    [de, b, st, kn].forEach(function (x) { if (x && (x.scrollTop || x.scrollLeft)) { x.scrollTop = 0; x.scrollLeft = 0; } });
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  }
   function focus(el, noScroll) {
     if (!el) return;
     if (current) current.classList.remove('focused');
@@ -291,7 +303,8 @@ PK.nav = (function () {
     el.classList.add('focused');
     var vw = el.closest && el.closest('.view.active'); if (vw) lastInView[vw.id] = el;
     if (el.tagName === 'INPUT') el.focus(); else if (document.activeElement && document.activeElement.tagName === 'INPUT') document.activeElement.blur();
-    if (!noScroll && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (!noScroll && el.scrollIntoView && !(el.closest && el.closest('.kn'))) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    pinPage();
     var evt = document.createEvent('Event'); evt.initEvent('pkfocus', true, true); el.dispatchEvent(evt);
   }
   function move(dir) {

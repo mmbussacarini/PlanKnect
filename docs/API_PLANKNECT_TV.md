@@ -669,3 +669,15 @@ A TV já monta a agenda por pessoa, mas hoje **nenhum dos 35 eventos traz `membe
 4. Tarefas com `assignee` = id do membro (hoje 0 de 60 têm responsável que bata com `members[].id`).
 
 **Deals:** a TV já lê o formato novo (`name`, `stageLabel`, `priority`, `temperature`, `temperatureAi`, `nextAction(Due)`, `outcome`, `values[]`). Esta TV recebe 403 — falta marcar "Mostrar pipeline de deals" para ela.
+
+
+## 24. Música (Spotify Connect)
+
+O app não toca o áudio: mostra e controla o Spotify Connect (app do Spotify na TV, Nest Hub, caixa de som). Cliente: `app/js/music.js`.
+
+- `GET /music/now` → `{ connected, playing, progress_ms, track:{title,artist,album,image,duration_ms,uri}, device:{id,name,type,volume}, context:{name,uri} }`
+- `POST /music/control { action: play|pause|next|previous|volume|seek|shuffle, value? }`
+- `GET /music/devices` → `{ devices:[{id,name,type,active,volume}] }` · `POST /music/transfer { device_id, play }`
+- `GET /music/playlists` → `{ playlists:[{uri,name,image,owner}] }` · `POST /music/play { uri } | { query }`
+- Erros: 403 `music_disabled`, `not_connected`, `no_device`, `premium_required`.
+- Polling: 5 s com o player aberto, 20 s no resto. Alfred: pausa/próxima/volume/"toca X" são resolvidos na própria TV; o resto vai para `/assistant` (`actions:[{type:'music',…}]`).

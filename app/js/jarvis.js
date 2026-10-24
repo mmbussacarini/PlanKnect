@@ -77,9 +77,34 @@ PK.voice = (function () {
       lastBlob = URL.createObjectURL(new Blob([arr], { type: mime || 'audio/wav' })); return lastBlob;
     } catch (e) { return dataUri; }
   }
+  // 1º pedaço curto (começa a falar rápido); o resto em blocos maiores = menos pausas entre frases
+  function chunks(parts) {
+    var out = [], cur = '';
+    parts.forEach(function (p, i) {
+      if (i === 0) { out.push(p); return; }
+      if (cur && (cur + ' ' + p).length > 220) { out.push(cur); cur = p; } else cur = cur ? cur + ' ' + p : p;
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+  var ttsCache = {}, ttsKeys = [];
+  function ttsGet(text, lang) {
+    var k = lang + '|' + text;
+    if (!ttsCache[k]) {
+      ttsCache[k] = PK.api.tts(text, { lang: lang, voice: 'alfred' });
+      ttsCache[k].catch(function () { delete ttsCache[k]; });
+      ttsKeys.push(k); if (ttsKeys.length > 24) delete ttsCache[ttsKeys.shift()];
+    }
+    return ttsCache[k];
+  }
+  function prefetch(text, lang) {
+    if (!cloudOn() || !text) return;
+    chunks(sentences(text)).slice(0, 3).forEach(function (c) { ttsGet(c, lang || 'en-GB'); });
+  }
   function cloud(parts, lang, my) {
-    var reqs = [];
-    var get = function (i) { if (i >= parts.length) return null; if (!reqs[i]) reqs[i] = PK.api.tts(parts[i], { lang: lang, voice: 'alfred' }); return reqs[i]; };
+    parts = chunks(parts);
+    parts.forEach(function (p, i) { if (i < 4) ttsGet(p, lang); }); // pede tudo de uma vez (em paralelo)
+    var get = function (i) { return i < parts.length ? ttsGet(parts[i], lang) : null; };
     var play = function (i) {
       if (my !== gen) return;
       if (i >= parts.length) return finish(my);
@@ -128,7 +153,7 @@ PK.voice = (function () {
     try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
     var h = hooks; hooks = {}; if (h.level) h.level(0); if (h.end) h.end();
   }
-  return { speak: speak, playAudio: playAudio, stop: stop, can: can, pick: pick, sentences: sentences, provider: function () { return cloudOn() ? (provider === 'device' && Date.now() - down < DOWN_MS ? 'device' : 'planknect') : 'device'; }, debug: function () { return { live: PK.data.mode(), down: down, hasDeviceVoice: hasDeviceVoice, analyser: useAnalyser, cloud: cloudOn(), played: played, lastErr: lastErr }; }, reset: function () { down = 0; U.store.set('ttsDown2', 0); lastErr = ''; } };
+  return { speak: speak, prefetch: prefetch, playAudio: playAudio, stop: stop, can: can, pick: pick, sentences: sentences, provider: function () { return cloudOn() ? (provider === 'device' && Date.now() - down < DOWN_MS ? 'device' : 'planknect') : 'device'; }, debug: function () { return { live: PK.data.mode(), down: down, hasDeviceVoice: hasDeviceVoice, analyser: useAnalyser, cloud: cloudOn(), played: played, lastErr: lastErr }; }, reset: function () { down = 0; U.store.set('ttsDown2', 0); lastErr = ''; } };
 })();
 
 /* ---------- orbe de partículas (inspirado no orb.ts do jarvis, em Canvas 2D para rodar em TV) ----------
@@ -328,7 +353,7 @@ PK.jarvis = (function () {
       '<button class="al-x focusable" data-al="close">' + I.get('x', opt.compact ? 22 : 30) + '</button>';
     opt.host.appendChild(el);
     var cv = el.querySelector('.al-cv');
-    if (cv && cv.getContext && PK.settings.get('ai.particles') !== false) { orb = PK.orb(cv, opt.compact ? 220 : 440); el.classList.add('has-cv'); }
+    if (cv && cv.getContext && PK.settings.get('ai.particles') !== false) { orb = PK.orb(cv, opt.compact ? 200 : (PK.tv && (PK.tv.isTizen || PK.tv.isWebOS) ? 300 : 440)); el.classList.add('has-cv'); }
     el.addEventListener('click', onClick);
     var inp = el.querySelector('.al-in');
     if (inp) inp.addEventListener('keydown', function (e) { if (e.keyCode === 13) { command(inp.value); inp.value = ''; } });
@@ -400,6 +425,7 @@ PK.jarvis = (function () {
       '<div class="al-sug">' + sg.slice(0, opt.compact ? 2 : 3).map(card).join('') + '</div>';
     drawMemory();
     if (opt.focus) opt.focus(el);
+    pin(); setTimeout(pin, 80);
     return need;
   }
   function refresh(talk) {
@@ -408,13 +434,19 @@ PK.jarvis = (function () {
     loadMemory();
     if (!live()) { say(b.speech || ''); return; }
     state('think', L('Consultando o PlanKnect…', 'Consulting PlanKnect…'));
-    var fallback = setTimeout(function () { say(b.speech || ''); }, 4000); // IA demorando: fala o resumo local
+    if (talk && PK.settings.get('ai.voice')) PK.voice.prefetch(b.speech || '', lang()); // áudio do resumo local já vai sendo preparado
+    var fallback = setTimeout(function () { say(b.speech || ''); }, 2000); // IA demorando: fala o resumo local
     getBriefing().then(function (rb) {
       if (!el.classList.contains('on') && !docked) return;
       if (el.getAttribute('data-st') === 'think') state('idle');
       if (rb.server) { b = rb; need = draw(b, current); clearTimeout(fallback); say(rb.speech); }
     });
     getSuggestions().then(function (all) { if (all.some(function (x) { return x.server; })) draw(b, all); });
+  }
+  function pin() { // nada dentro do Alfred rola sozinho (o foco da TV empurrava a tela)
+    if (!el) return;
+    [el, el.querySelector('.al-wrap'), el.querySelector('.al-left'), el.querySelector('.al-right'), el.querySelector('.al-body'), document.getElementById('stage'), document.body, document.documentElement]
+      .forEach(function (x) { if (x && (x.scrollTop || x.scrollLeft)) { x.scrollTop = 0; x.scrollLeft = 0; } });
   }
   function card(s) {
     return '<div class="al-c' + (s.tone ? ' ' + s.tone : '') + '" data-kn="' + esc(s.id) + '"><div class="al-ct">' + I.get(s.ic || 'sparkle', opt.compact ? 20 : 28) + '<div><b>' + esc(s.title) + '</b><span>' + esc(s.body) + '</span></div></div>' +
@@ -424,6 +456,7 @@ PK.jarvis = (function () {
     build(); texts();
     el.querySelector('.al-heard').textContent = ''; var rp = el.querySelector('.al-reply'); rp.textContent = ''; rp.className = 'al-reply';
     el.classList.add('on'); el.classList.add('active'); document.body.classList.add('alfred-on'); if (orb) orb.start();
+    pin();
     var sc = PK.settings.get('ai.scene') || 'library-warm', sh = el.querySelector('.al-scene');
     if (sh && PK.scenes && sc !== 'none' && sh.getAttribute('data-s') !== sc) { sh.innerHTML = ''; PK.scenes.mount(sh, sc); sh.setAttribute('data-s', sc); }
     log = []; el.querySelector('.al-log').innerHTML = '';

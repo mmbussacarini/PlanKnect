@@ -98,3 +98,42 @@ POST /notes { "text": "Jantar pronto!", "by": "<members[].id>", "to": ["<familyM
 - `expires_at` = when it disappears (1 h, tonight, tomorrow, 3 days, 1 week, or null = never). Please honour it (omit expired notes).
 - `device_ids` = show only on these screens (null = all screens of the household). Please store and filter per device, or return it so the TV filters.
 - "Seen" now supports several people at once (the TV calls `POST /notes/:id/seen` once per member).
+
+---
+
+# Round 4 — Spotify "Now playing" on the TV and Nest Hub
+
+The TV app and the Nest Hub already have a full **Now playing** player (cover, title, artist, progress, play/pause/next/previous, volume, "Play on" device picker, playlists) and Alfred handles "play the family playlist / pause / next / louder" locally. Today it runs in demo. Please build the backend so it works with the family's real Spotify.
+
+**How it works:** the sound never comes from our web app (Spotify blocks its Web Playback SDK on TVs). We use the **Spotify Web API + Spotify Connect**: the music plays on the Spotify app of the Samsung TV, the Nest Hub (Cast), a speaker or a phone, and the TV/Nest Hub only shows and controls it.
+
+## 1. Connect Spotify once (PlanKnect web)
+- Settings › Integrations › **Spotify** › "Connect" → Spotify OAuth (Authorization Code + PKCE), scopes: `user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-library-read`.
+- Store the refresh token server-side (encrypted), per **household** (optionally per member: "whose Spotify does this TV use?"). Refresh access tokens automatically. Never send Spotify tokens to the TV.
+- Device page: a switch **"Music (Spotify)"** per paired TV/hub (`settings.content.music`), off → the routes below answer 403 `{ "error": "music_disabled" }`.
+
+## 2. Routes (the TV already calls these, base `/functions/v1/tv`)
+| Method | Route | Body | Response |
+|---|---|---|---|
+| GET | `/music/now` | — | `{ connected, playing, progress_ms, track:{ title, artist, album, image, duration_ms, uri }, device:{ id, name, type, volume }, context:{ name, uri } }` · not connected → `{ connected:false }` · nothing playing → `{ connected:true, playing:false, track:null }` |
+| POST | `/music/control` | `{ action: "play"\|"pause"\|"next"\|"previous"\|"volume"\|"seek"\|"shuffle", value? }` | `{ ok:true }` (`value` = 0–100 for volume, ms for seek, bool for shuffle) |
+| GET | `/music/devices` | — | `{ devices:[{ id, name, type, active, volume }] }` |
+| POST | `/music/transfer` | `{ device_id, play:true }` | `{ ok:true }` |
+| GET | `/music/playlists` | — | `{ playlists:[{ uri, name, image, owner, tracks }] }` (user's playlists, 50 max, family ones first) |
+| POST | `/music/play` | `{ uri }` or `{ query }` (+ optional `device_id`) | `{ ok:true, playing:{ name, uri } }` — `query` = search tracks/playlists/artists and play the best match |
+
+Errors: `{ "error": "not_connected" }` (Spotify not linked), `{ "error": "no_device" }` (Spotify's NO_ACTIVE_DEVICE — the TV then shows "Play on" so the user picks a device), `{ "error": "premium_required" }` (Spotify only allows remote control with Premium).
+
+- **No active device fallback:** if `play`/`play {uri}` gets NO_ACTIVE_DEVICE and the household has a **default device** set in Settings (e.g. "Samsung TV"), transfer to it and retry.
+- Cache `/music/now` for ~2 s per household (the TV polls every 5 s while the player is open, 20 s otherwise). Even better: push changes via `/version` bumps.
+
+## 3. Alfred
+- `POST /assistant` should also understand music ("toca a playlist da família", "play some jazz in the kitchen", "pause", "next song", "what's playing?") and return `actions:[{ type:"music", action:"play", uri|query, device_id? }]` — music needs **no Confirm**. The TV already handles the simple commands locally; the server is the fallback for richer requests ("play something calm for dinner", "play Lara's playlist on the Nest Hub").
+- `/ai/briefing` may mention what's playing or suggest a playlist (e.g. dinner time → "Jantar tranquilo").
+
+## 4. Nice to have
+- `GET /music/recent` (recently played) and `GET /music/queue`.
+- Per-member playlists on the kids' tiles ("Músicas das crianças").
+- Spotify "family mix" suggestion at dinner/weekend in `/ai/suggestions`.
+
+Reply with: routes, JSON samples, the Settings switch, and what you tested with a real Spotify Premium account.

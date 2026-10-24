@@ -157,6 +157,7 @@
       (state.lists[0] ? '<button class="chip" data-go="list">' + I.get('cart', 22) + ' ' + state.lists[0].items.filter(function (i) { return !i.done; }).length + ' na lista</button>' : '') +
       (b && b.open.length ? '<button class="chip' + (b.late.length ? ' warn' : '') + '" data-golist="' + b.list.id + '">' + I.get('card', 22) + ' ' + (b.late.length ? b.late.length + ' conta' + (b.late.length > 1 ? 's' : '') + ' atrasada' + (b.late.length > 1 ? 's' : '') : b.soon.length ? b.soon.length + ' conta' + (b.soon.length > 1 ? 's' : '') + ' esta semana' : b.open.length + ' contas do mês') + '</button>' : '') +
       (function () { var g = taskGroups(); var n = g.today.length + g.late.length; return n ? '<button class="chip' + (g.late.length ? ' warn' : '') + '" data-go="tasks">' + I.get('task', 22) + ' ' + (g.today.length ? g.today.length + ' tarefa' + (g.today.length > 1 ? 's' : '') + ' hoje' : '') + (g.today.length && g.late.length ? ' · ' : '') + (g.late.length ? g.late.length + ' atrasada' + (g.late.length > 1 ? 's' : '') : '') + '</button>' : ''; })() +
+      (PK.music ? PK.music.chip() : '') +
       (state.notes.length ? '<button class="chip" data-go="notes">' + I.get('note', 22) + ' ' + state.notes.length + ' recado' + (state.notes.length > 1 ? 's' : '') + '</button>' : '');
     var side = timed.length ? timed.map(function (e) {
       return '<div class="tl-r' + (e.end <= now ? ' past' : '') + '" style="--c:' + (COLORS[e.type] || '#60a5fa') + '"><b>' + U.hm(e.start) + '</b><i></i><span>' + esc(e.private ? 'Ocupado' : e.title) + '</span>' + PK.who(state, e, 24, 3) + '</div>';
@@ -542,6 +543,7 @@
   function exitAmbient() { var el = $('hub-ambient'); if (!el.classList.contains('on')) return; el.classList.remove('on', 'dark'); clearInterval(ambT); lastTouch = Date.now(); load(); }
 
   /* ---------- folhas (sheets) ---------- */
+  if (PK.music) PK.music.openHandler = function () { sheet('<div class="qa-h">' + I.get('music', 28) + ' Música<button data-act="sheet-close">' + I.get('x', 26) + '</button></div><div id="mu-host"></div>'); PK.music.mount($('mu-host'), true); };
   function sheet(html) { closeSheet(); var d = document.createElement('div'); d.className = 'qa'; d.id = 'sheet'; d.innerHTML = '<div class="qa-box">' + html + '</div>'; $('hub').appendChild(d); }
   function closeSheet() { var d = $('sheet'); if (d) d.parentNode.removeChild(d); }
   function whoSheet(title, act, arg) {
@@ -676,7 +678,7 @@
       if (a.list) listSel = a.list; render();
     },
     canInterrupt: function () { if (!$('hub-main').classList.contains('on') || recipe || $('hub-door').classList.contains('on')) return false; exitAmbient(); return true; },
-    command: function (text, o) { return PK.data.assistant(text, { state: state, view: tab, lang: o && o.lang }).then(function (r) { load(); return r; }); },
+    command: function (text, o) { var mi = PK.music && PK.music.intent(text); if (mi) return mi; return PK.data.assistant(text, { state: state, view: tab, lang: o && o.lang }).then(function (r) { (r.actions || []).forEach(function (x) { if (x.type === 'music' && PK.music) PK.music.act(x); }); load(); return r; }); },
     speak: function () { micSheet(); }, refresh: function () { load(); }
   });
 

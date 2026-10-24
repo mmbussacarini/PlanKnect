@@ -118,6 +118,7 @@ PK.views = (function () {
     if (extra !== 'note' && PK.world) { var xt = PK.world.homeTile(state, extra); if (xt) tiles.push(xt); }
     else if (note) { var nb = member(state, note.by); tiles.push('<div class="sh-tile note focusable" data-open="note:' + esc(note.id) + '"><div class="sh-k">' + I.get('note', 18) + ' Recado' + (nb ? ' de ' + esc(nb.name) : '') + '</div><div class="sh-n">' + esc(note.text) + '</div></div>'); }
 
+    if (PK.music && PK.settings.get('home.music') !== false) tiles.push(PK.music.tile());
     var dock = '<div class="h-dock">' + PK.config.apps.map(function (a) {
       if (PK.tv.isTizen && a.samsungName) a = { id: a.samsung, samsung: a.samsung, name: a.samsungName, style: a.samsungStyle };
       return '<button class="dk focusable" data-app="' + esc(a.id) + '" data-name="' + esc(a.name) + '">' + appIcon(a) + '<span>' + esc(a.name) + '</span></button>';
