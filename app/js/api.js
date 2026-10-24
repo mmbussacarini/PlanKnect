@@ -15,7 +15,7 @@ PK.normalize = (function () {
       id: e.id, title: e.title, type: e.type || 'event',
       start: U.toDate(e.start), end: U.toDate(e.end || e.start), allDay: !!e.allDay,
       members: e.members || [], location: e.location || '', video: e.video || null,
-      color: e.color || null, private: !!e.private, boardId: e.boardId || null, projectId: e.projectId || null
+      color: e.color || null, private: !!e.private, boardId: e.boardId || null, projectId: e.projectId || null, organizationId: e.organizationId || null
     };
   }
   function task(t) {
@@ -52,6 +52,15 @@ PK.normalize = (function () {
     if (top && (!hh || hh.id !== top) && byId(top)) { var o = byId(top); return { id: o.id, name: o.name, timezone: o.timezone || (hh && hh.timezone), location: hh && hh.location }; }
     return hh || { name: 'Família' };
   }
+  // período da missão: horário, se vier; senão pelo nome (inglês ou português)
+  function choreperiod(c) {
+    if (c.due && /T(\d\d)/.test(c.due)) { var h = +RegExp.$1; return h < 12 ? 'manhã' : h < 18 ? 'tarde' : 'noite'; }
+    var t = String(c.title || '').toLowerCase();
+    if (/morning|breakfast|uniform(?! off)|get changed|hair|car at|school|manh|caf[eé] da manh|escova.*manh|cama|bed/.test(t)) return 'manhã';
+    if (/evening|night|dinner|shower|bath|pajama|bedtime|noite|jantar|banho|pijama/.test(t)) return 'noite';
+    return 'tarde';
+  }
+  function localKey(d) { var x = d instanceof Date ? d : new Date(d); return x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2) + '-' + ('0' + x.getDate()).slice(-2); }
   // cor fixa por projeto (o PlanKnect não manda cor): mesma cor em todas as telas
   var PCOL = ['#60a5fa', '#a78bfa', '#34d399', '#f472b6', '#fbbf24', '#22d3ee', '#fb923c', '#a3e635', '#e879f9', '#f87171', '#2dd4bf', '#818cf8'];
   function projColors(list) {
@@ -71,7 +80,10 @@ PK.normalize = (function () {
   }
   function bundle(b) {
     b = dedupe(b);
-    return personal(b, bundle0(b));
+    var out = personal(b, bundle0(b)), today = localKey(new Date());
+    out.choresAll = out.chores; // todas (próximos dias também) — a agenda usa
+    out.chores = out.chores.filter(function (c) { return !c.due || String(c.due).slice(0, 10) === today; }); // missões de hoje
+    return out;
   }
   function bundle0(b) {
     return {
@@ -85,7 +97,7 @@ PK.normalize = (function () {
         var st = String(c.status || '').toLowerCase();
         c.familyMemberId = c.member; if (m) c.member = m.id;
         c.pending = !!(c.pendingApproval || c.pending_approval || /submit|pending|await|review/.test(st));
-        if (!c.period) { var hh = c.due && /T(\d\d)/.test(c.due) ? +RegExp.$1 : 15; c.period = hh < 12 ? 'manhã' : hh < 18 ? 'tarde' : 'noite'; }
+        if (!c.period) c.period = choreperiod(c);
         return c;
       }),
       lists: b.lists || [],

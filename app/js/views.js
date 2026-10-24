@@ -191,14 +191,20 @@ PK.views = (function () {
   function filterEvents(state, ui) {
     return state.events.filter(function (e) {
       if (ui.familyOnly && isWork(e)) return false;
-      if (ui.member !== 'all' && e.members.length && e.members.indexOf(ui.member) < 0) return false;
+      if (ui.member !== 'all') {
+        if (e.members.length) return e.members.indexOf(ui.member) >= 0;
+        // sem dono: só entra se for da família (não tarefa/marco de empresa)
+        var fam = state.household && state.household.id;
+        return !!fam && e.organizationId === fam && e.type !== 'task' && e.type !== 'milestone';
+      }
       return true;
     });
   }
   function agenda(state, ui) {
     var chips = '<div class="ag-bar">' +
       '<div class="seg"><button class="seg-b focusable' + (ui.mode === 'people' ? ' on' : '') + '" data-ag="mode:people"' + (ui.mode === 'people' ? ' data-autofocus' : '') + '>' + I.get('users', 26) + ' Hoje por pessoa</button>' +
-      '<button class="seg-b focusable' + (ui.mode === 'week' ? ' on' : '') + '" data-ag="mode:week"' + (ui.mode === 'week' ? ' data-autofocus' : '') + '>' + I.get('calendar', 26) + ' Semana</button></div>' +
+      '<button class="seg-b focusable' + (ui.mode === 'week' && !ui.week ? ' on' : '') + '" data-ag="week:0"' + (ui.mode === 'week' ? ' data-autofocus' : '') + '>' + I.get('calendar', 26) + ' Esta semana</button>' +
+      '<button class="seg-b focusable' + (ui.mode === 'week' && ui.week ? ' on' : '') + '" data-ag="week:1">Próxima</button></div>' +
       '<div class="chips">' + (ui.mode === 'week' ? '<button class="chip focusable' + (ui.member === 'all' ? ' on' : '') + '" data-ag="member:all"><span class="av all">' + I.get('users', 22) + '</span>Todos</button>' +
         state.members.map(function (m) {
           return '<button class="chip focusable' + (ui.member === m.id ? ' on' : '') + '" data-ag="member:' + m.id + '" style="--m:' + m.color + '">' + av(m, 40) + esc(m.name) + '</button>';
@@ -208,7 +214,8 @@ PK.views = (function () {
   }
 
   function week(state, ui) {
-    var now = new Date(), ws = U.weekStart(now), evAll = filterEvents(state, ui), cols = [];
+    var now = new Date(), ws = U.addDays(U.weekStart(now), 7 * (ui.week || 0)), evAll = filterEvents(state, ui), cols = [];
+    var kid = ui.member && ui.member !== 'all' && (state.members.filter(function (m) { return m.id === ui.member && m.kid; })[0]);
     for (var i = 0; i < 7; i++) {
       var day = U.addDays(ws, i), isToday = U.sameDay(day, now), past = day < U.startOfDay(now);
       var evs = evAll.filter(function (e) { return U.sameDay(e.start, day); });
@@ -224,7 +231,11 @@ PK.views = (function () {
             (e.allDay ? '' : '<span class="wk-time">' + U.hm(e.start) + '<span class="wk-av">' + avatars(state, e.members, 22) + '</span></span>') + '<span class="wk-t">' + esc(title(e)) + '</span></div>';
         }).join('') + (evs.length > MAX ? '<div class="wk-more">+' + (evs.length - MAX) + ' mais</div>' : '') +
         (!evs.length ? '<div class="wk-free">Livre</div>' : '') + '</div>' +
-        (meal ? '<div class="wk-meal">' + I.get('chef', 20) + ' ' + esc(meal.title) + '</div>' : '') + '</div>');
+        (meal ? '<div class="wk-meal">' + I.get('chef', 20) + ' ' + esc(meal.title) + '</div>' : '') + (function () {
+          var mine = (state.choresAll || state.chores).filter(function (c) { return (kid ? c.member === kid.id : true) && c.due && U.sameDay(U.toDate(String(c.due).slice(0, 10) + 'T12:00:00'), day); });
+          if (!mine.length || (!kid && ui.member !== 'all')) return '';
+          return '<div class="wk-ch">' + I.get('star', 18) + ' ' + mine.length + ' miss' + (mine.length > 1 ? 'ões' : 'ão') + (kid ? '<small>' + mine.slice(0, 3).map(function (c) { return esc(c.title); }).join(' · ') + (mine.length > 3 ? '…' : '') + '</small>' : '') + '</div>';
+        })() + '</div>');
     }
     return '<div class="wk-grid">' + cols.join('') + '</div>';
   }

@@ -579,7 +579,8 @@
   }
   function agendaControl(v) {
     var p = v.split(':');
-    if (p[0] === 'mode') ui.agenda.mode = p[1];
+    if (p[0] === 'mode') { ui.agenda.mode = p[1]; ui.agenda.week = 0; }
+    if (p[0] === 'week') { ui.agenda.mode = 'week'; ui.agenda.week = +p[1]; }
     if (p[0] === 'member') ui.agenda.member = p[1];
     if (p[0] === 'family') ui.agenda.familyOnly = !ui.agenda.familyOnly;
     var el = $('view-agenda');
