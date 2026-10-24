@@ -21,6 +21,7 @@ PK.views = (function () {
   function member(state, id) { return state.members.filter(function (m) { return m.id === id; })[0]; }
   function av(m, size) {
     if (!m) return '';
+    if (m.photo) return '<span class="av photo" style="background:' + m.color + ' url(\'' + esc(m.photo) + '\') center/cover;width:' + size + 'px;height:' + size + 'px"></span>';
     return '<span class="av" style="background:' + m.color + ';width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.46) + 'px">' + esc(m.initial) + '</span>';
   }
   function avatars(state, ids, size) { return (ids || []).slice(0, 5).map(function (id) { return av(member(state, id), size); }).join(''); }
@@ -304,7 +305,7 @@ PK.views = (function () {
       var api = scoresApi && scoresApi[k.id], local = 0, days = [];
       for (var i = 0; i < 7; i++) { var dk = U.addDays(ws, i).toISOString().slice(0, 10), v = (hist[dk] && hist[dk][k.id]) || 0; local += v; days.push(v); }
       var week = api ? api.points : (k.weekStars != null ? k.weekStars : (k.stars != null ? k.stars : local));
-      out[k.id] = { week: week, days: api && api.days || days, goal: (api && api.goal) || (k.reward && k.reward.goal) || +PK.settings.get('chores.weeklyGoal') || 50, reward: (api && api.reward) || (k.reward && k.reward.title) || '' };
+      out[k.id] = { monday: !!(api && api.days), week: week, days: api && api.days || days, goal: (api && api.goal) || (k.reward && k.reward.goal) || +PK.settings.get('chores.weeklyGoal') || 50, reward: (api && api.reward) || (k.reward && k.reward.title) || '' };
     });
     return out;
   }
@@ -355,7 +356,7 @@ PK.views = (function () {
           '<div class="kid-count"><b>' + done + '</b>/' + mine.length + '</div></div>' +
           '<div class="jar-row">' + jar(k, sc, 96) + '<div class="jar-info"><div class="jar-n"><b>' + stars + '</b>/' + goal + ' ★</div><div class="jar-l">esta semana</div>' +
             (sc.reward ? '<div class="jar-rw">' + I.get('gift', 22) + ' ' + (stars >= goal ? 'Ganhou: ' : 'Faltam ' + (goal - stars) + ' para ') + '<b>' + esc(sc.reward) + '</b></div>' : '') +
-            '<div class="jar-days">' + sc.days.map(function (v, i) { return '<i class="' + (v ? 'on' : '') + (i === new Date().getDay() ? ' today' : '') + '" title="' + v + '"></i>'; }).join('') + '</div></div></div>' +
+            '<div class="jar-days">' + sc.days.map(function (v, i) { return '<i class="' + (v ? 'on' : '') + (i === (sc.monday ? (new Date().getDay() + 6) % 7 : new Date().getDay()) ? ' today' : '') + '" title="' + v + '"></i>'; }).join('') + '</div></div></div>' +
           (allDone ? '<div class="kid-party">' + I.get('sparkle', 40) + '<div>Arrasou, ' + esc(k.name) + '!<small>Todas as missões feitas</small></div></div>' : '') +
           '<div class="mission-grid">' + mine.map(function (c, i) {
             return '<div class="mission focusable' + (c.done ? ' done' : '') + (c.pending && !c.done ? ' pending' : '') + (c.period === period && !c.done ? ' now' : '') + '" data-chore="' + esc(c.id) + '"' + (ki === 0 && i === 0 ? ' data-autofocus' : '') + '>' +

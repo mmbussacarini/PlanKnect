@@ -91,10 +91,29 @@
     setView('home');
     refreshData(); refreshWeather();
     clearInterval(timers.data); clearInterval(timers.weather);
-    timers.data = setInterval(refreshData, C.refresh.dataMs);
+    // conectado: GET /version a cada 15 s e recarrega só quando muda (+ segurança a cada 2 min); demo: intervalo fixo
+    timers.data = setInterval(function () {
+      if (PK.data.mode() !== 'live') { if (Date.now() - sync.last > C.refresh.dataMs) refreshData(); return; }
+      if (sync.ver) PK.data.version().then(function (r) {
+        if (r && r.version && r.version !== sync.v) { var first = sync.v === null; sync.v = r.version; if (!first) refreshData(); }
+      }).catch(function () { sync.ver = false; });
+      if (!sync.ver || Date.now() - sync.last > 120000) refreshData();
+    }, 15000);
+    // respostas do celular (planknect.com/tv/remote) para esta TV
+    clearInterval(timers.pending);
+    timers.pending = setInterval(function () {
+      if (PK.data.mode() !== 'live' || !PK.api.assistantPending) return;
+      PK.api.assistantPending(sync.cursor).then(function (r) {
+        var reps = r.replies || [];
+        reps.forEach(function (x) { if (sync.seen[x.id]) return; sync.seen[x.id] = 1; if (PK.jarvis.remote) PK.jarvis.remote(x.reply || {}); });
+        sync.cursor = reps.length >= 20 ? reps[reps.length - 1].created_at : (r.cursor || sync.cursor);
+      }).catch(function () {});
+    }, 5000);
     timers.weather = setInterval(refreshWeather, C.refresh.weatherMs);
   }
+  var sync = { v: null, ver: true, last: 0, cursor: new Date(Date.now() - 120000).toISOString(), seen: {} };
   function refreshData() {
+    sync.last = Date.now();
     $('sync').className = 'sync busy';
     return PK.data.load().then(function (b) {
       for (var k in b) state[k] = b[k];

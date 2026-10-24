@@ -22,7 +22,7 @@ PK.normalize = (function () {
     return {
       id: t.id, title: t.title, project: t.project || '', projectId: t.projectId || null,
       priority: t.priority || 'medium', due: U.toDate(t.due), assignee: t.assignee || null,
-      status: t.status || 'open', boardId: t.boardId || null, url: t.url || null, org: t.org || null, projectId: t.projectId || null, project: t.project || '', description: t.description || ''
+      status: t.status || 'open', boardId: t.boardId || null, assigneeFamilyMemberId: t.assigneeFamilyMemberId || null, assignees: t.assignees || null, url: t.url || null, org: t.org || null, projectId: t.projectId || null, project: t.project || '', description: t.description || ''
     };
   }
   // Um membro por pessoa: se o PlanKnect mandar duplicados (mesmo nome), junta os ids
@@ -74,6 +74,9 @@ PK.normalize = (function () {
       var d = dests.filter(function (x) { return (x.familyMemberId && x.familyMemberId === m.familyMemberId) || (x.userId && x.userId === m.id); })[0];
       if (d) { m.dest = { boardId: d.boardId, projectId: d.projectId, organizationId: d.organizationId, userId: d.userId || null }; (byBoard[d.boardId] = byBoard[d.boardId] || []).push(m.id); }
     });
+    out.tasks.forEach(function (t) {
+      if (!t.assignee && t.assigneeFamilyMemberId) { var fm = out.members.filter(function (m) { return m.familyMemberId === t.assigneeFamilyMemberId; })[0]; if (fm) t.assignee = fm.id; }
+    });
     out.tasks.forEach(function (t) { var who = byBoard[t.boardId]; if (who) { t.personal = who; if (!t.assignee && who.length === 1) t.assignee = who[0]; } });
     out.events.forEach(function (e) { var who = byBoard[e.boardId]; if (who) { e.personal = who; who.forEach(function (id) { if (e.members.indexOf(id) < 0) e.members.push(id); }); } });
     return out;
@@ -88,7 +91,7 @@ PK.normalize = (function () {
   function bundle0(b) {
     return {
       household: familyCalendar(b),
-      members: b.members || [],
+      members: (b.members || []).map(function (m) { if (!m.initial) m.initial = String(m.name || '?').trim().charAt(0).toUpperCase(); m.photo = m.photo || m.photoUrl || m.avatar || null; if (!m.color) m.color = '#7c5cff'; return m; }),
       events: (b.events || []).map(event).sort(function (a, c) { return a.start - c.start; }),
       projects: projColors(b.projects || []),
       tasks: (b.tasks || []).map(task).map(function (t) { var p = (b.projects || []).filter(function (x) { return x.id === t.projectId; })[0]; if (p) { t.projectColor = p.color; t.org = t.org || p.org; t.projectStatus = p.status; } return t; }),
@@ -195,7 +198,7 @@ PK.api = (function () {
 
   /* --- Dados --- */
   function tz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return ''; } }
-  function wantAudio() { return !!PK.settings.get('ai.voice') && PK.settings.get('ai.planknectVoice') !== false; }
+  function wantAudio() { return false; } // contrato: speak:false + /voice/tts separado = resposta na tela mais rápida
   function qs(q) { if (!q) return ""; var p = []; for (var k in q) if (q[k] != null) p.push(k + "=" + encodeURIComponent(q[k])); return p.length ? "?" + p.join("&") : ""; }
   function load() {
     var from = U.weekStart(new Date()), to = U.addDays(from, 15); // esta semana + a próxima
@@ -267,7 +270,9 @@ PK.api = (function () {
     updateTask: function (id, patch) { return req('POST', '/api/tv/tasks/' + enc(id), patch); },
     // Ao vivo da campainha (WebRTC via Google Device Access): manda a oferta SDP, recebe a resposta
     doorLive: function (offerSdp, deviceId) { return req('POST', '/api/tv/door/live', { offerSdp: offerSdp, deviceId: deviceId }); },
-    setNoteSeen: function (id, member) { return req('POST', '/api/tv/notes/' + enc(id) + '/seen', { member: member }); },
+    setNoteSeen: function (id, member) { var m = (PK.app.state().members || []).filter(function (x) { return x.id === member; })[0]; return req('POST', '/api/tv/notes/' + enc(id) + '/seen', { member: (m && m.familyMemberId) || member }); },
+    // respostas enviadas pelo celular (planknect.com/tv/remote) para esta TV
+    assistantPending: function (since) { return req('GET', '/api/tv/assistant/pending?since=' + encodeURIComponent(since)); },
     addNote: function (text, by) { return req('POST', '/api/tv/notes', { text: text, by: by }); },
     alerts: function (since) { return req('GET', '/api/tv/alerts?since=' + (since || 0)); },
     broadcast: function (alert) { return req('POST', '/api/tv/alerts', alert); },

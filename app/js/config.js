@@ -9,7 +9,7 @@ PK.config = {
   apiBase: 'https://mfenmzwuosubzfuehywc.supabase.co/functions/v1/tv',
   linkUrl: 'https://planknect.com/tv',          // QR de pareamento (?code=XXXX-XXXX) — página do Lovable
   remoteUrl: 'https://planknect.com/tv/remote', // celular como controle de voz
-  remoteReady: false, // a página acima ainda não existe no PlanKnect (404) — mostra o QR só quando existir
+  remoteReady: true, // planknect.com/tv/remote publicado (login + segurar para falar → resposta chega aqui via /assistant/pending)
   listUrl: 'https://planknect.com/lists',       // levar a lista de compras no celular
 
   location: { name: 'Sydney', lat: -33.80, lon: 151.28 },

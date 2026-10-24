@@ -264,10 +264,19 @@ PK.jarvis = (function () {
     return out.filter(function (s) { return !dismissed[s.id]; });
   }
 
-  function getBriefing() { return live() ? PK.api.aiBriefing({ lang: lang(), persona: 'alfred' }).catch(briefingLocal) : Promise.resolve(briefingLocal()); }
+  // conectado: o PlanKnect escreve o resumo falado (agenda, tarefas, deals, memória); os cartões continuam locais
+  function getBriefing() {
+    var b = briefingLocal(); if (!live()) return Promise.resolve(b);
+    var from = U.startOfDay(new Date()), to = U.addDays(from, 7);
+    return PK.api.aiBriefing({ lang: lang(), persona: 'alfred', from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) })
+      .then(function (r) { if (r && r.reply) { b.server = r.reply; b.speech = greet(new Date().getHours()) + '. ' + r.reply; } return b; }).catch(function () { return b; });
+  }
   function getSuggestions() {
-    if (!live()) return Promise.resolve(suggestionsLocal());
-    return PK.api.aiSuggestions({ lang: lang() }).then(function (r) { return (r.suggestions || []).filter(function (s) { return !dismissed[s.id]; }); }).catch(suggestionsLocal);
+    var loc = suggestionsLocal(); if (!live()) return Promise.resolve(loc);
+    return PK.api.aiSuggestions({ lang: lang() }).then(function (r) {
+      var srv = (r.suggestions || []).filter(function (s) { return !dismissed[s.id]; }).map(function (s) { s.server = true; s.ic = s.icon || s.ic; return s; });
+      return srv.concat(loc);
+    }).catch(function () { return loc; });
   }
 
   /* ---------- presença ---------- */
@@ -337,7 +346,7 @@ PK.jarvis = (function () {
       var fg = t.getAttribute('data-al-forget'); if (fg) { forget(fg); return; }
       var pp = t.getAttribute('data-al-prop'); if (pp) { var q = pp.split('|'); decide(q[0], q[1]); return; }
       var yes = t.getAttribute('data-kn-yes'), no = t.getAttribute('data-kn-no');
-      if (no) { dismissed[no] = Date.now(); U.store.set('aiDismissed', dismissed); remove(no); if (live()) PK.api.aiAct(no, 'dismiss').catch(function () {}); }
+      if (no) { dismissed[no] = Date.now(); U.store.set('aiDismissed', dismissed); remove(no); if (live() && current.some(function (x) { return x.id === no && x.server; })) PK.api.aiAct(no, 'dismiss').catch(function () {}); }
       if (yes) act(current.filter(function (s) { return s.id === yes; })[0]);
   }
 
@@ -381,22 +390,30 @@ PK.jarvis = (function () {
     el.querySelector('.al-try').innerHTML = '<div class="al-h2">' + L('Experimente dizer', 'Try saying') + '</div><div class="al-chips">' + TRY.slice(0, opt.compact ? 3 : 4).map(function (x) { var s = EN() ? x[1] : x[0]; return '<button class="al-chip focusable" data-al-say="' + esc(s) + '">“' + esc(s) + '”</button>'; }).join('') + '</div>';
     state('idle');
   }
+  // mostra na hora o resumo local e as sugestões locais; o texto do PlanKnect (IA, alguns segundos) entra quando chegar
+  function draw(b, sg) {
+    var body = el.querySelector('.al-body'), need = attention(); current = sg;
+    body.innerHTML = '<div class="al-h">' + esc(b.title || '') + '</div>' + needHtml(need) + (b.server ? '<p class="al-srv">' + I.get('sparkle', 22) + esc(b.server) + '</p>' : '<p class="al-srv wait" style="display:none"></p>') + '<div class="al-brief">' + (b.lines || []).slice(0, need.length || b.server ? 2 : (opt.compact ? 4 : 6)).map(function (l) {
+        return '<div class="al-l">' + I.get(l.ic, opt.compact ? 22 : 32) + '<div><b>' + esc(l.t) + '</b>' + (l.s ? '<span>' + esc(l.s) + '</span>' : '') + '</div></div>'; }).join('') + '</div>' +
+      '<div class="al-h2">' + (sg.length ? L('Sugestões do ' + name(), name() + ' suggests') : L('Nada pendente — tudo em ordem', 'Nothing pending — all in order')) + '</div>' +
+      '<div class="al-sug">' + sg.slice(0, opt.compact ? 2 : 3).map(card).join('') + '</div>';
+    drawMemory();
+    if (opt.focus) opt.focus(el);
+    return need;
+  }
   function refresh(talk) {
-    var body = el.querySelector('.al-body');
-    body.innerHTML = '<div class="al-load"><span class="spin"></span>' + L(name() + ' está preparando seu resumo…', name() + ' is preparing your briefing…') + '</div>';
-    state('think');
-    Promise.all([getBriefing(), getSuggestions()]).then(function (r) {
-      var b = r[0] || {}, sg = r[1] || []; current = sg;
+    var b = briefingLocal(), sg = suggestionsLocal(), spoken = false, need = draw(b, sg);
+    var say = function (text) { if (!talk || spoken) return; spoken = true; speak((need.length ? L('Antes de tudo: ', 'Before anything else: ') + need.map(function (n) { return n.say; }).join(' ') + ' ' : '') + text); };
+    loadMemory();
+    if (!live()) { say(b.speech || ''); return; }
+    state('think', L('Consultando o PlanKnect…', 'Consulting PlanKnect…'));
+    var fallback = setTimeout(function () { say(b.speech || ''); }, 4000); // IA demorando: fala o resumo local
+    getBriefing().then(function (rb) {
+      if (!el.classList.contains('on') && !docked) return;
       if (el.getAttribute('data-st') === 'think') state('idle');
-      var need = attention();
-      body.innerHTML = '<div class="al-h">' + esc(b.title || '') + '</div>' + needHtml(need) + '<div class="al-brief">' + (b.lines || []).slice(0, need.length ? 2 : (opt.compact ? 4 : 6)).map(function (l) {
-          return '<div class="al-l">' + I.get(l.ic, opt.compact ? 22 : 32) + '<div><b>' + esc(l.t) + '</b>' + (l.s ? '<span>' + esc(l.s) + '</span>' : '') + '</div></div>'; }).join('') + '</div>' +
-        '<div class="al-h2">' + (sg.length ? L('Sugestões do ' + name(), name() + ' suggests') : L('Nada pendente — tudo em ordem', 'Nothing pending — all in order')) + '</div>' +
-        '<div class="al-sug">' + sg.slice(0, opt.compact ? 2 : 3).map(card).join('') + '</div>';
-      drawMemory(); loadMemory();
-      if (talk) speak((need.length ? L('Antes de tudo: ', 'Before anything else: ') + need.map(function (n) { return n.say; }).join(' ') + ' ' : '') + (b.speech || ''));
-      if (opt.focus) opt.focus(el);
+      if (rb.server) { b = rb; need = draw(b, current); clearTimeout(fallback); say(rb.speech); }
     });
+    getSuggestions().then(function (all) { if (all.some(function (x) { return x.server; })) draw(b, all); });
   }
   function card(s) {
     return '<div class="al-c' + (s.tone ? ' ' + s.tone : '') + '" data-kn="' + esc(s.id) + '"><div class="al-ct">' + I.get(s.ic || 'sparkle', opt.compact ? 20 : 28) + '<div><b>' + esc(s.title) + '</b><span>' + esc(s.body) + '</span></div></div>' +
@@ -426,7 +443,15 @@ PK.jarvis = (function () {
     if (!s) return;
     var a = s.action || {};
     dismissed[s.id] = Date.now(); U.store.set('aiDismissed', dismissed); remove(s.id);
-    if (live() && s.server) { PK.api.aiAct(s.id, 'accept').then(function (r) { reply({ reply: (r && r.reply) || L('Feito', 'Done') }); if (opt.refresh) opt.refresh(); }).catch(function (e) { PK.toast(PK.writeErr(e)); }); return; }
+    if (live() && s.server) {
+      PK.api.aiAct(s.id, 'accept').then(function (r) {
+        var acts = (r && r.actions) || [];
+        if (acts.some(function (x) { return x.type === 'navigate'; })) close();
+        if (opt.applyActions) opt.applyActions(acts); else if (s.action && s.action.view) opt.navigate({ view: s.action.view });
+        if (r && r.reply) reply({ reply: r.reply });
+      }).catch(function (e) { PK.toast(PK.writeErr(e)); });
+      return;
+    }
     if (a.broadcast) PK.data.broadcast(a.broadcast).then(function () { reply({ reply: L('Avisei a família.', 'I have let the family know.'), en: 'I have let the family know.' }); });
     if (a.snoozeLate && !live()) {
       var st = S(), sod = U.startOfDay(new Date()), next = U.addDays(sod, 7).toISOString().slice(0, 10);
@@ -574,7 +599,7 @@ PK.jarvis = (function () {
       });
       return;
     }
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) { recordUsb(); return; }
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) { recordUsb(); return; }
     noMic();
   }
   function noMic() {
@@ -583,37 +608,48 @@ PK.jarvis = (function () {
     if (opt.compact && opt.speak) opt.speak();
     var inp = el.querySelector('.al-in'); if (inp && PK.nav) PK.nav.focus(inp);
   }
-  /* Microfone USB / câmera da TV: grava até 6 s (ou até 1,2 s de silêncio) e manda o áudio ao PlanKnect */
+  /* Microfone USB / câmera da TV: grava em WAV (arquivo completo, como o PlanKnect pede) até 6 s ou 1,2 s de
+   * silêncio depois da fala, e manda ao /assistant, que transcreve (detecta o idioma) e devolve heard + propostas. */
+  function wav(chunks, rate) {
+    var len = 0; chunks.forEach(function (c) { len += c.length; });
+    var target = 16000, ratio = rate / target, n = Math.floor(len / ratio), buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), all = new Float32Array(len), o = 0;
+    chunks.forEach(function (c) { all.set(c, o); o += c.length; });
+    var w = function (off, str) { for (var i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, target, true); v.setUint32(28, target * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    for (var i = 0; i < n; i++) { var x = Math.max(-1, Math.min(1, all[Math.floor(i * ratio)])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+    var bin = '', bytes = new Uint8Array(buf); for (var k = 0; k < bytes.length; k += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + 0x8000));
+    return btoa(bin);
+  }
   function recordUsb() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { noMic(); return; }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       state('listen');
-      var chunks = [], AC = window.AudioContext || window.webkitAudioContext, ctx = AC ? new AC() : null, an = null, buf = null, quiet = 0, heard = false;
-      if (ctx) { an = ctx.createAnalyser(); an.fftSize = 512; ctx.createMediaStreamSource(stream).connect(an); buf = new Uint8Array(an.fftSize); }
-      var r = rec = new window.MediaRecorder(stream);
-      r.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-      r.onstop = function () {
-        clearInterval(levelT); level(0); stream.getTracks().forEach(function (t) { t.stop(); }); if (ctx && ctx.close) ctx.close();
+      var ctx = new AC(), src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [], quiet = 0, heard = false, t0 = Date.now();
+      var stopIt = function () {
+        if (!rec) return; rec = null; clearTimeout(recT);
+        try { proc.disconnect(); src.disconnect(); } catch (e) {} stream.getTracks().forEach(function (t) { t.stop(); }); level(0);
+        var rate = ctx.sampleRate; if (ctx.close) ctx.close();
         if (!heard || !chunks.length) { state('idle', L('Não ouvi nada — tente de novo', 'I didn’t quite catch that — do try again')); return; }
-        var blob = new Blob(chunks, { type: r.mimeType || 'audio/webm' }), fr = new FileReader();
+        if (!live()) { state('idle', L('Gravei! Transcrever a voz precisa do PlanKnect conectado', 'Recorded — transcription needs PlanKnect connected')); return; }
         state('think');
-        fr.onload = function () {
-          if (!live()) { state('idle', L('Gravei! Transcrever a voz precisa do PlanKnect conectado', 'Recorded — transcription needs PlanKnect connected')); return; }
-          PK.api.assistantAudio(String(fr.result).split(',')[1], blob.type, { lang: lang(), listenLang: PK.settings.get('ai.listenLang') || 'pt-BR' }).then(function (res) {
-            if (res.heard || res.text) el.querySelector('.al-heard').textContent = '“' + (res.heard || res.text) + '”';
-            if (opt.applyActions && !(res.needs_confirmation || (res.proposals || []).length)) opt.applyActions(res.actions || []);
-            reply(res);
-          }).catch(function (e) { state('idle', /404|not_found/.test(e.message) ? L('O PlanKnect ainda não recebe áudio — digite ou use o celular', 'PlanKnect can’t take audio just yet — do type, or use your phone') : PK.writeErr(e)); });
-        };
-        fr.readAsDataURL(blob);
+        PK.api.assistantAudio(wav(chunks, rate), 'audio/wav', { lang: lang(), listenLang: PK.settings.get('ai.listenLang') || 'pt-BR' }).then(function (res) {
+          if (res.heard || res.text) el.querySelector('.al-heard').textContent = '“' + (res.heard || res.text) + '”';
+          if (opt.applyActions && !(res.needs_confirmation || (res.proposals || []).length)) opt.applyActions(res.actions || []);
+          reply(res);
+        }).catch(function (e) { state('idle', PK.writeErr(e)); });
       };
-      r.start();
-      levelT = setInterval(function () {
-        if (!an) { level(0.5); heard = true; return; }
-        an.getByteTimeDomainData(buf); var peak = 0; for (var i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
-        var v = Math.min(1, peak / 60); level(v);
-        if (v > 0.18) { heard = true; quiet = 0; } else if (heard && (quiet += 80) > 1200) stopListen();
-      }, 80);
-      recT = setTimeout(stopListen, 6000);
+      rec = { state: 'recording', stop: stopIt };
+      proc.onaudioprocess = function (e) {
+        var d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d));
+        var pk = 0; for (var i = 0; i < d.length; i += 8) pk = Math.max(pk, Math.abs(d[i]));
+        var v = Math.min(1, pk * 2.2); level(v);
+        if (v > 0.12) { heard = true; quiet = 0; } else if (heard && (quiet += d.length / ctx.sampleRate * 1000) > 1200) stopIt();
+        if (Date.now() - t0 > 6000) stopIt();
+      };
+      src.connect(proc); proc.connect(ctx.destination);
+      recT = setTimeout(stopIt, 6500);
     }).catch(function () { noMic(); });
   }
   function fakeLevel(on) { clearInterval(levelT); if (on) levelT = setInterval(function () { level(0.35 + Math.random() * 0.5); }, 110); else level(0); }
@@ -635,5 +671,7 @@ PK.jarvis = (function () {
   return { init: init, open: function (w) { open(w); }, close: close, name: name,
     listen: function () { if (docked || el.classList.contains('on')) listen(); else open('listen'); },
     dock: dock, undock: undock, docked: function () { return docked; },
+    // resposta que chegou pelo celular: mostra (e fala) no Alfred, com Confirmar/Cancelar se houver proposta
+    remote: function (r) { if (!docked && !el.classList.contains('on')) open('silent'); if (r.heard || r.text) el.querySelector('.al-heard').textContent = '📱 “' + (r.heard || r.text) + '”'; reply(r); },
     isOpen: function () { return !!(el && el.classList.contains('on')); } };
 })();
