@@ -384,7 +384,7 @@
   function openVoice() { PK.jarvis.listen(); }
   // Executa o comando no PlanKnect (ou no demo) e aplica as ações. Ações que trocam de tela esperam o Alfred terminar a frase.
   function alfredCommand(text, o) {
-    return PK.data.assistant(text, { state: state, view: ui.view, lang: o && o.lang }).then(function (r) {
+    return PK.data.assistant(text, { state: state, view: ui.view, lang: o && o.lang, meeting_id: o && o.meeting_id }).then(function (r) {
       var acts = r.actions || [], moves = acts.some(function (x) { return /navigate|meeting|work|launch|camera/.test(x.type); });
       if (PK.workmode.active()) { applyActions(acts.filter(function (x) { return !/navigate|launch|camera/.test(x.type); })); return r; } // no modo Computador, não troca de tela
       if (r.needs_confirmation || (r.proposals && r.proposals.length)) { applyActions(acts.filter(function (x) { return x.type === 'refresh'; })); return r; } // espera o Confirmar

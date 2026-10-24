@@ -131,16 +131,18 @@ PK.modes = (function () {
           '<div id="rm-extra"><div class="rm-load"><span class="spin"></span> Carregando participantes e pauta…</div></div>'
         : '<div class="rm-chip">SEM REUNIÃO AGORA</div><h1 class="rm-t">Sala livre</h1><div class="rm-when">Nenhuma reunião com vídeo no resto do dia.</div>') +
       '</aside></div>' +
-      '<div class="rm-acts">' + (e && e.video && PK.computer.on() ? '<button class="rm-b join focusable" data-rm="join" data-autofocus>' + I.get('video', 30) + '<span><b>Entrar no computador</b><em>abre o Meet no Mac e mostra aqui</em></span></button>' : '') +
+      '<div class="rm-acts' + (e ? ' many' : '') + '">' + (e && e.video && PK.computer.on() ? '<button class="rm-b join focusable" data-rm="join" data-autofocus>' + I.get('video', 30) + '<span><b>Entrar no computador</b><em>abre o Meet no Mac e mostra aqui</em></span></button>' : '') +
         '<button class="rm-b focusable" data-rm="work"' + (e && e.video && PK.computer.on() ? '' : ' data-autofocus') + '>' + I.get('monitor', 30) + '<span><b>Computador na TV</b><em>HDMI numa janela com o PlanKnect em volta</em></span></button>' +
         '<button class="rm-b focusable" data-rm="backdrop">' + I.get('sparkle', 30) + '<span><b>Fundo para câmera</b><em>Cenário bonito atrás de você</em></span></button>' +
         '<button class="rm-b focusable" data-rm="onair">' + I.get('moon', 30) + '<span><b>Aviso para a família</b><em>“Em reunião” com tempo restante</em></span></button>' +
+        (e ? '<button class="rm-b ask focusable" data-rm="ask"><span class="kn-mini"></span><span><b>Perguntar à reunião</b><em>Alfred usa a transcrição</em></span></button>' : '') +
         (e ? '<button class="rm-b focusable" data-rm="detail">' + I.get('calendar', 30) + '<span><b>Detalhes</b><em>Pauta, anexos e gravação</em></span></button>' : '') +
         '<button class="rm-b ghost focusable" data-rm="exit">' + I.get('x', 30) + '<span><b>Sair</b><em>Voltar ao PlanKnect</em></span></button></div>' +
       (today.length ? '<div class="rm-day">' + today.map(function (x) { var live = x.start <= now && x.end > now, past = x.end <= now; return '<span class="' + (live ? 'live' : past ? 'past' : '') + '"><b>' + U.hm(x.start) + '</b>' + esc(x.private ? 'Ocupado' : x.title) + '</span>'; }).join('') + '</div>' : '') +
       '</div>';
     PK.scenes.mount($('mt-scene'), S.get('meeting.scene'));
     el.onclick = roomClick;
+    if (PK.deals && PK.deals.load) PK.deals.load();
     roomTick(); camStart(); setTimeout(PK.nav.reset, 40);
     knectStart(e);
     if (e) PK.data.detail('event', e.id).then(function (d) {
@@ -149,7 +151,10 @@ PK.modes = (function () {
       if (url && window.QRCode) { new window.QRCode($('rm-qr'), { text: url, width: 150, height: 150, colorDark: '#0b1230', colorLight: '#ffffff' }); $('rm-join').classList.add('on'); }
       x.innerHTML = (att.length ? '<div class="rm-sec">Participantes · ' + att.length + '</div><div class="rm-people">' + att.slice(0, 8).map(function (a) {
           return '<span class="rm-p' + (a.response === 'accepted' ? ' ok' : a.response === 'declined' ? ' no' : '') + '"><i style="background:' + (a.color || '#6366f1') + '">' + esc(initials(a.name)) + '</i>' + esc(String(a.name || '').split(' ')[0]) + '</span>'; }).join('') + (att.length > 8 ? '<span class="rm-p more">+' + (att.length - 8) + '</span>' : '') + '</div>' : '') +
-        (ag.length ? '<div class="rm-sec">Pauta</div><ol class="rm-ag">' + ag.slice(0, 4).map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ol>' : '') +
+        (ag.length ? (function () { var dn = ag.filter(function (a) { return a && a.done; }).length;
+            return '<div class="rm-sec">Pauta' + (dn ? ' · ' + dn + '/' + ag.length : '') + '</div>' + (dn ? '<div class="rm-agbar"><i style="width:' + Math.round(dn / ag.length * 100) + '%"></i></div>' : '') +
+              '<ol class="rm-ag">' + ag.slice(0, 4).map(function (a) { return '<li class="' + (a && a.done ? 'done' : '') + '">' + esc(typeof a === 'string' ? a : a.title || a.text) + '</li>'; }).join('') + '</ol>'; })() : '') +
+        dealCard(d, e) +
         (!att.length && !ag.length ? '<div class="rm-none">Sem participantes ou pauta no PlanKnect.</div>' : '');
     }).catch(function () { var x = $('rm-extra'); if (x) x.innerHTML = ''; });
   }
@@ -165,7 +170,7 @@ PK.modes = (function () {
         var lt = $('kx-lt'); if (lt) lt.textContent = r.live ? 'AO VIVO · TRANSCRIÇÃO' : 'TRANSCRIÇÃO';
         $('rm-cam-ph').classList.toggle('is-live', !!r.live);
         if (kx.lines.length) box.innerHTML = kx.lines.map(function (l, i) { return '<div class="kx-l' + (i === kx.lines.length - 1 ? ' new' : '') + '"><b style="color:' + spk(l.speaker) + '">' + U.esc(l.speaker || '—') + '</b>' + U.esc(l.text) + '</div>'; }).join('');
-      }).catch(function (err) { var box = $('kx-lines'); if (box && /404|not_found/.test(err.message)) box.innerHTML = '<div class="kx-wait">A transcrição ao vivo ainda não chega à TV — o PlanKnect precisa liberar a rota.</div>'; });
+      }).catch(function (err) { var box = $('kx-lines'); if (box) box.innerHTML = '<div class="kx-wait">' + (/404|not_found/.test(err.message) ? 'A transcrição ao vivo ainda não chega à TV.' : U.esc(gate(err.message))) + '</div>'; });
     };
     var ins = function () {
       PK.data.meetingInsights(e.id).then(function (r) {
@@ -173,7 +178,8 @@ PK.modes = (function () {
         var byProj = {}; (r.suggested_tasks || []).forEach(function (t) { var k = t.project || 'Sem projeto'; (byProj[k] = byProj[k] || []).push(t); });
         var keep = document.querySelector('.kx-s .focused'), keepId = keep && keep.getAttribute('data-kx');
         box.innerHTML = (r.summary ? '<p class="kx-sum">' + U.esc(r.summary) + '</p>' : '') +
-          ((r.key_decisions || []).length ? '<div class="kx-sec">Decisões</div>' + r.key_decisions.slice(0, 3).map(function (d) { return '<div class="kx-dec">' + I.get('check', 18) + U.esc(d) + '</div>'; }).join('') : '') +
+          ((r.key_decisions || []).length ? '<div class="kx-sec">Decisões</div>' + r.key_decisions.slice(0, 3).map(function (d) { return '<div class="kx-dec">' + I.get('check', 18) + U.esc(txt(d)) + '</div>'; }).join('') : '') +
+          flags(r) +
           (Object.keys(byProj).length ? '<div class="kx-sec">Tarefas sugeridas pelo PlanKnect</div>' + Object.keys(byProj).map(function (p) {
             return '<div class="kx-proj">' + I.get('briefcase', 16) + U.esc(p) + '</div>' + byProj[p].map(function (t) {
               return '<div class="kx-s"><div><b>' + U.esc(t.title) + '</b><span>' + U.esc([t.owner, t.due].filter(Boolean).join(' · ')) + '</span></div>' +
@@ -181,9 +187,22 @@ PK.modes = (function () {
           }).join('') : '');
         if (!box.innerHTML) box.innerHTML = '<div class="kx-wait">Sem insights ainda.</div>';
         if (keepId) { var nb = box.querySelector('[data-kx="' + keepId + '"]'); if (nb) PK.nav.focus(nb, true); }
-      }).catch(function (err) { var box = $('kx-ins'); if (box && /404|not_found/.test(err.message)) box.innerHTML = '<div class="kx-wait">Insights e tarefas sugeridas aparecem quando o PlanKnect liberar a rota.</div>'; });
+      }).catch(function (err) { var box = $('kx-ins'); if (box) box.innerHTML = '<div class="kx-wait">' + (/404|not_found/.test(err.message) ? 'Insights aparecem quando o PlanKnect liberar a rota.' : U.esc(gate(err.message))) + '</div>'; });
     };
-    live(); ins(); kx.t = setInterval(live, 4000); kx.it = setInterval(ins, 20000);
+    live(); ins(); kx.t = setInterval(live, 4000); kx.it = setInterval(ins, 10000);
+  }
+  function txt(x) { return typeof x === 'string' ? x : (x && (x.text || x.title || x.summary)) || ''; }
+  // motivo do PlanKnect em português (reunião não liberada, sigilo comercial, etc.)
+  function gate(m) {
+    if (/select it for this TV|review this meeting/i.test(m)) return 'Esta reunião não foi liberada para a TV. Em planknect.com › Dispositivos › esta TV › “Reuniões aprovadas para esta TV”, revise e selecione esta reunião (e ligue Reunião ao vivo / Insights).';
+    if (/commercial/i.test(m)) return 'Reunião com termos comerciais: o PlanKnect não mostra em telas compartilhadas.';
+    return m;
+  }
+  // riscos, perguntas em aberto, conflitos com decisões anteriores e duplicatas (KnectMeet ao vivo)
+  function flags(r) {
+    var T = [['risks', 'Riscos', 'bell', 'risk'], ['questions', 'Perguntas em aberto', 'note', 'q'], ['conflicts', 'Conflitos', 'bell', 'conf'], ['duplicates', 'Possíveis duplicatas', 'refresh', 'dup']];
+    return T.map(function (k) { var list = r[k[0]] || []; if (!list.length) return '';
+      return '<div class="kx-sec">' + k[1] + '</div>' + list.slice(0, 3).map(function (x) { return '<div class="kx-flag ' + k[3] + '">' + I.get(k[2], 16) + U.esc(txt(x)) + '</div>'; }).join(''); }).join('');
   }
   function knectStop() { clearInterval(kx.t); clearInterval(kx.it); kx.t = kx.it = null; }
   var SPK = ['#a5b4fc', '#f9a8d4', '#86efac', '#fcd34d', '#7dd3fc', '#fdba74'];
@@ -195,6 +214,13 @@ PK.modes = (function () {
       PK.toast(U.esc(r.reply || (action === 'accept' ? 'Tarefa criada' : 'Ignorada'))); setTimeout(PK.nav.reset, 30);
       if (action === 'accept' && PK.app.refresh) PK.app.refresh();
     }).catch(function (e) { if (row) row.classList.remove('busy'); PK.toast(PK.writeErr(e)); });
+  }
+  // deal do mesmo projeto da reunião (Deal Room): estágio, valor e próxima ação
+  function dealCard(d, e) {
+    if (!PK.deals || !PK.deals.get) return '';
+    var pid = d.projectId || e.projectId, dl = (PK.deals.all ? PK.deals.all() : []).filter(function (x) { return (d.dealId && x.id === d.dealId) || (pid && x.projectId === pid); })[0];
+    if (!dl) return '';
+    return '<div class="rm-sec">Deal ligado</div><div class="rm-deal"><b>' + U.esc(dl.title) + '</b><span>' + U.esc(dl.stage) + ' · ' + PK.deals.money(dl.values[0].amount, dl.values[0].currency) + (dl.next ? ' · ' + U.esc(dl.next.text) : '') + '</span></div>';
   }
   function roomTick() {
     var c = $('rm-clock'); if (c) c.textContent = U.hm(new Date());
@@ -208,6 +234,7 @@ PK.modes = (function () {
     ev.stopPropagation();
     var a = b.getAttribute('data-rm'), e = roomEvent();
     if (a === 'exit') { exitMeeting(true); return; }
+    if (a === 'ask' && e) { PK.jarvis.meeting({ id: e.id, title: e.title }); PK.jarvis.listen(); return; }
     if (a === 'join' && e) { PK.data.detail('event', e.id).then(function (d) { PK.computer.join(d.conference && d.conference.url); }); return; }
     var sg = b.getAttribute('data-kx'); if (sg) { var q = sg.split('|'); suggest(q[0], q[1], b); return; }
     if (a === 'work') { exitMeeting(true); PK.workmode.open(function () { return PK.app.state(); }); return; }

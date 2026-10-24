@@ -64,3 +64,24 @@ Please add the ones you can build now, and list the rest with the shape you'd se
 - Never send costs, commissions, margins or finance scenarios to the TV.
 - Children's devices only see and submit their own items.
 - Always reply with: route, method, request/response JSON, the Settings switch, and what you tested.
+
+---
+
+# Round 2 — KnectMeet on the TV (reply to your meeting plan)
+
+**Hardware in use:** Samsung QA75Q60B (2022, Tizen 6.5) running our packaged web app; Google Nest Hub (1st gen) via Cast (DashCast); LG webOS supported by the same code. A MacBook is connected by HDMI.
+
+**Correction on HDMI:** on Samsung the app *can* show a physical HDMI input in a window using the official `tizen.tvwindow` API (privilege `tv.window`); our "Computer mode" already does this (HDMI window + PlanKnect around it). We don't read pixels — the TV composites the input under the page. So Scenario B works without Multi-View.
+
+**Already built on the TV (uses your routes):**
+- Meeting room HUD: live transcript (`GET /events/meeting:<uuid>/live?since=`, 4 s), insights (`/insights`, 10 s), suggested tasks grouped by project with Create/Dismiss (`POST …/suggestions/:id`), decisions, and now **risks / questions / conflicts / duplicates** cards, agenda progress, linked deal card, Meet QR and **Join on computer** (opens the Meet on the HDMI-connected Mac through a local helper).
+- Your gate messages (e.g. "Review this meeting and select it for this TV") are shown on screen.
+- **"Ask the meeting"**: the TV now sends `meeting_id` with `POST /assistant` (text and audio). Please implement it: inject the last minutes of transcript + agenda + project tasks + linked deal, answer in the requested `lang` with Alfred's tone, and return proposals as usual.
+
+**Please add/confirm:**
+1. `POST /assistant` with `meeting_id` (above) — and say what the response adds (e.g. `sources: [{seq, speaker}]` so the TV can highlight the quoted lines).
+2. Insights response: include `risks[]`, `questions[]`, `conflicts[]`, `duplicates[]` (strings or `{text, seq}`); keep `pricing` server-side only.
+3. `agenda: [{ title, done }]` (done = covered in the conversation) on the meeting detail, so the TV shows agenda progress.
+4. `dealId` (or `projectId`) on the meeting event so the TV can show the linked deal; and a reviewed **"add to deal"** action (`POST /events/meeting:<uuid>/suggestions/:id { action: "accept", target: "deal" }`) if you support it.
+5. Optional: slide/screen-share snapshots from the bot (`GET /events/meeting:<uuid>/frames?since=` → signed image URLs) so the TV can show what is being presented.
+6. Route naming: your note mentions `/events/:id/meeting/live`; the deployed route is `/events/meeting:<uuid>/live` — the TV uses the deployed one. Please keep it.

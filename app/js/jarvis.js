@@ -179,7 +179,7 @@ PK.orb = function (canvas, n) {
 PK.jarvis = (function () {
   var U = PK.util, I = PK.icons, esc = U.esc;
   var opt = null, el = null, dismissed = U.store.get('aiDismissed', {}), shownDay = U.store.get('aiBriefDay', {});
-  var mini = null, fullEl = null, fullOrb = null, docked = false;
+  var mini = null, fullEl = null, fullOrb = null, docked = false, meetCtx = null; // meetCtx: reunião atual (Perguntar à reunião)
   var current = [], busy = false, rec = null, recT = null, levelT = null, orb = null, log = [], memory = U.store.get('aiMemory', []);
   function name() { return (PK.config.ai && PK.config.ai.name) || 'Alfred'; }
   function lang() { return PK.settings.get('ai.lang') || 'en-GB'; }
@@ -387,7 +387,8 @@ PK.jarvis = (function () {
     var mic = el.querySelector('.al-mic span'); if (mic) mic.textContent = L('Falar', 'Speak');
     var inp = el.querySelector('.al-in'); if (inp) inp.placeholder = L('Ou digite: “adiciona café na lista”', 'Or type: “add coffee to the list”');
     var ph = el.querySelector('.al-phone b'); if (ph) { ph.textContent = L('Fale pelo celular', 'Speak from your phone'); el.querySelector('.al-phone span').textContent = L('Aponte a câmera, segure e fale', 'Scan, hold and speak'); }
-    el.querySelector('.al-try').innerHTML = '<div class="al-h2">' + L('Experimente dizer', 'Try saying') + '</div><div class="al-chips">' + TRY.slice(0, opt.compact ? 3 : 4).map(function (x) { var s = EN() ? x[1] : x[0]; return '<button class="al-chip focusable" data-al-say="' + esc(s) + '">“' + esc(s) + '”</button>'; }).join('') + '</div>';
+    var tryList = meetCtx ? [['Resuma os últimos 10 minutos', 'Summarise the last ten minutes'], ['O que foi decidido?', 'What has been decided?'], ['Quais tarefas estão sem responsável?', 'Which tasks have no owner?'], ['O que disseram sobre o prazo?', 'What was said about the deadline?']] : TRY;
+    el.querySelector('.al-try').innerHTML = '<div class="al-h2">' + (meetCtx ? L('Pergunte à reunião', 'Ask the meeting') + ' · ' + esc(meetCtx.title || '') : L('Experimente dizer', 'Try saying')) + '</div><div class="al-chips">' + tryList.slice(0, opt.compact ? 3 : 4).map(function (x) { var s = EN() ? x[1] : x[0]; return '<button class="al-chip focusable" data-al-say="' + esc(s) + '">“' + esc(s) + '”</button>'; }).join('') + '</div>';
     state('idle');
   }
   // mostra na hora o resumo local e as sugestões locais; o texto do PlanKnect (IA, alguns segundos) entra quando chegar
@@ -433,6 +434,7 @@ PK.jarvis = (function () {
   }
   function close() {
     if (docked) { stopListen(); return; } // acoplado: não fecha, só para de ouvir
+    meetCtx = null;
     stopListen(); PK.voice.stop();
     if (el) { el.classList.remove('on'); el.classList.remove('active'); } if (orb) orb.stop();
     document.body.classList.remove('alfred-on');
@@ -483,7 +485,9 @@ PK.jarvis = (function () {
     busy = true;
     var box = el.querySelector('.al-reply'); box.textContent = ''; box.className = 'al-reply';
     state('think');
-    var pr; try { pr = opt.command(text, { lang: lang() }); } catch (err) { pr = Promise.reject(err); }
+    var pr;
+    if (meetCtx && !live()) pr = PK.data.meetingInsights(meetCtx.id).then(function (r) { return { reply: 'Pelo que foi dito: ' + (r.summary || 'ainda não há falas suficientes.'), en: 'From what has been said: ' + (r.summary || 'there is not enough yet.') }; }); // demo
+    else { try { pr = opt.command(text, { lang: lang(), meeting_id: meetCtx && meetCtx.id }); } catch (err) { pr = Promise.reject(err); } }
     pr.then(function (r) { busy = false; reply(r || {}); })
       .catch(function (e) { busy = false; state('idle'); box.textContent = L('Desculpe, não consegui: ', 'I do beg your pardon — ') + ((e && e.message) || ''); box.className = 'al-reply show err'; });
   }
@@ -634,7 +638,7 @@ PK.jarvis = (function () {
         if (!heard || !chunks.length) { state('idle', L('Não ouvi nada — tente de novo', 'I didn’t quite catch that — do try again')); return; }
         if (!live()) { state('idle', L('Gravei! Transcrever a voz precisa do PlanKnect conectado', 'Recorded — transcription needs PlanKnect connected')); return; }
         state('think');
-        PK.api.assistantAudio(wav(chunks, rate), 'audio/wav', { lang: lang(), listenLang: PK.settings.get('ai.listenLang') || 'pt-BR' }).then(function (res) {
+        PK.api.assistantAudio(wav(chunks, rate), 'audio/wav', { lang: lang(), listenLang: PK.settings.get('ai.listenLang') || 'pt-BR', meetingId: meetCtx && meetCtx.id }).then(function (res) {
           if (res.heard || res.text) el.querySelector('.al-heard').textContent = '“' + (res.heard || res.text) + '”';
           if (opt.applyActions && !(res.needs_confirmation || (res.proposals || []).length)) opt.applyActions(res.actions || []);
           reply(res);
@@ -672,6 +676,7 @@ PK.jarvis = (function () {
     listen: function () { if (docked || el.classList.contains('on')) listen(); else open('listen'); },
     dock: dock, undock: undock, docked: function () { return docked; },
     // resposta que chegou pelo celular: mostra (e fala) no Alfred, com Confirmar/Cancelar se houver proposta
+    meeting: function (m) { meetCtx = m; if (el && el.classList.contains('on')) texts(); },
     remote: function (r) { if (!docked && !el.classList.contains('on')) open('silent'); if (r.heard || r.text) el.querySelector('.al-heard').textContent = '📱 “' + (r.heard || r.text) + '”'; reply(r); },
     isOpen: function () { return !!(el && el.classList.contains('on')); } };
 })();

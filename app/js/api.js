@@ -257,7 +257,7 @@ PK.api = (function () {
     // Alfred (Jarvis): briefing e sugestões proativas geradas no PlanKnect
     aiBriefing: function (q) { return req('GET', '/api/tv/ai/briefing' + qs(q)); },
     aiSuggestions: function (q) { return req('GET', '/api/tv/ai/suggestions' + qs(q)); },
-    assistantAudio: function (b64, mime, o) { return req('POST', '/api/tv/assistant', { audio: b64, mime: mime, lang: o.lang, listen_lang: o.listenLang, persona: 'alfred', speak: wantAudio(), tz: tz() }); },
+    assistantAudio: function (b64, mime, o) { return req('POST', '/api/tv/assistant', { audio: b64, mime: mime, lang: o.lang, listen_lang: o.listenLang, meeting_id: o.meetingId || undefined, persona: 'alfred', speak: wantAudio(), tz: tz() }); },
     // Alfred propõe, a pessoa confirma: nada é gravado antes disso (expira em 15 min → 409)
     proposal: function (id, action) { return req('POST', '/api/tv/assistant/proposals/' + enc(id), { action: action }); },
     // Voz do PlanKnect (mesma do KnectAI no site): texto → áudio. Resposta { audio: <base64>, mime } ou { url }
@@ -278,7 +278,7 @@ PK.api = (function () {
     broadcast: function (alert) { return req('POST', '/api/tv/alerts', alert); },
     setSubtask: function (tid, sid, done) { return req('POST', '/api/tv/tasks/' + enc(tid) + '/subtasks/' + enc(sid), { done: done }); },
     // A IA do PlanKnect interpreta e executa; a TV aplica as ações de interface que voltarem
-    assistant: function (text, ctx) { return req('POST', '/api/tv/assistant', { text: text, view: ctx && ctx.view, lang: ctx && ctx.lang, persona: 'alfred', speak: wantAudio(), tz: tz() }); }
+    assistant: function (text, ctx) { return req('POST', '/api/tv/assistant', { text: text, view: ctx && ctx.view, lang: ctx && ctx.lang, meeting_id: (ctx && ctx.meeting_id) || undefined, persona: 'alfred', speak: wantAudio(), tz: tz() }); }
   };
 })();
 
@@ -663,6 +663,7 @@ PK.mock = (function () {
     return Promise.resolve({ summary: 'Revisão das cotações do lote de dezembro. A Kestrel é 12% mais barata, mas leva 6 semanas; o time vai negociar um pedido parcial com o fornecedor atual.',
       key_decisions: ['Manter o fornecedor atual para um pedido parcial', 'NCNDA assinado antes de qualquer pedido novo'],
       action_items: [{ text: 'Comparação final das cotações', owner: 'Ana', due: 'quarta' }],
+      risks: ['Prazo de 6 semanas da Kestrel pode atrasar o lote de dezembro'], questions: ['Quem aprova o pedido parcial acima de US$ 500 mil?'], conflicts: [{ text: 'Paulo propôs pedido novo antes do NCNDA — contraria a decisão de 14/10' }],
       suggested_tasks: [
         { id: 'sg1', title: 'Negociar pedido parcial com o fornecedor atual', project: 'InnovaTradeCapital - Trade/Commodities', owner: 'Paulo', due: 'sexta' },
         { id: 'sg2', title: 'Enviar NCNDA para assinatura', project: 'InnovaTradeCapital - Trade/Commodities', owner: 'Kenji', due: 'amanhã' },

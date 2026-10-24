@@ -145,5 +145,5 @@ PK.deals = (function () {
   }
   function get(id) { return (cache || []).filter(function (y) { return y.id === id; })[0]; }
 
-  return { load: load, view: view, open: open, compact: compact, get: get, money: money, reset: function () { cache = null; } };
+  return { all: function () { return cache || []; }, load: load, view: view, open: open, compact: compact, get: get, money: money, reset: function () { cache = null; } };
 })();
