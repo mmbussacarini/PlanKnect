@@ -146,8 +146,15 @@ PK.plus = (function () {
   }
 
   /* ---------- RECADOS (aba) ---------- */
+  function noteMeta(st, n) {
+    var to = (n.to || []).map(function (id) { return member(st, id); }).filter(Boolean), ex = n.expires_at && new Date(n.expires_at), left = ex ? ex - Date.now() : 0;
+    if (!to.length && !ex) return '';
+    return '<div class="pn-meta">' + (to.length ? '<span>Para ' + to.map(function (m) { return PK.views.av(m, 24); }).join('') + '</span>' : '') +
+      (ex ? '<span>' + I.get('clock', 16) + ' some ' + (left < 3600000 ? 'em ' + Math.max(1, Math.round(left / 60000)) + ' min' : left < 864e5 && U.sameDay(ex, new Date()) ? 'hoje ' + U.hm(ex) : U.dueLabel(ex, new Date()).replace('atrasada ', '')) + '</span>' : '') + '</div>';
+  }
   function notesView(st) {
-    var ns = st.notes || [], c = (st.settings && st.settings.content) || {}, live = PK.data.mode() === 'live', canWrite = !live || c.noteWrite !== false;
+    var now0 = Date.now(), dev = PK.api.deviceId();
+    var ns = (st.notes || []).filter(function (n) { return (!n.expires_at || new Date(n.expires_at) > now0) && (!n.device_ids || !n.device_ids.length || n.device_ids.indexOf(dev) >= 0); }), c = (st.settings && st.settings.content) || {}, live = PK.data.mode() === 'live', canWrite = !live || c.noteWrite !== false;
     var seenOf = function (n) { return (n.seenBy || []).map(function (id) { return member(st, id); }).filter(Boolean); };
     var unseen = ns.filter(function (n) { return !seenOf(n).length; }).length;
     var head = '<div class="pn-head"><h1>' + I.get('note', 44) + ' Recados da família</h1>' + (ns.length ? '<span class="pn-count">' + ns.length + ' recado' + (ns.length > 1 ? 's' : '') + (unseen ? ' · <b>' + unseen + ' novo' + (unseen > 1 ? 's' : '') + '</b>' : '') + '</span>' : '') +
@@ -160,7 +167,7 @@ PK.plus = (function () {
       var missing = st.members.filter(function (m) { return seen.indexOf(m) < 0 && m !== by; });
       return '<div class="pn-c c' + (i % 4) + ' r' + (i % 3) + ' focusable' + (isNew ? ' new' : '') + '" data-pn="seen:' + esc(n.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '><i class="pn-pin"></i>' + (isNew ? '<span class="pn-new">NOVO</span>' : '') +
         '<div class="pn-by">' + (by ? PK.views.av(by, 44) + '<span><b>' + esc(first(by)) + '</b><small>' + (n.at ? ago(n.at) : '') + '</small></span>' : '<span><small>' + (n.at ? ago(n.at) : '') + '</small></span>') + '</div>' +
-        '<p>' + esc(n.text) + '</p>' +
+        '<p>' + esc(n.text) + '</p>' + noteMeta(st, n) +
         '<div class="pn-s">' + (seen.length ? '<span class="pn-seen">' + I.get('check', 18) + seen.map(function (m) { return PK.views.av(m, 28); }).join('') + '</span>' : '<span>Ninguém viu ainda</span>') +
         (missing.length ? '<em>OK = “Vi”</em>' : '<em class="all">Todos viram</em>') + '</div></div>';
     }).join('') + '</div>';
@@ -172,11 +179,57 @@ PK.plus = (function () {
       return '<button class="voter focusable" data-' + attr + '="' + esc(arg) + '" data-m="' + m.id + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + PK.views.av(m, 96) + '<span>' + esc(first(m)) + '</span></button>';
     }).join('') + '</div>', actions: [{ label: 'Cancelar', act: 'close', ghost: true }] }, 'settings');
   }
-  function newNoteModal() {
-    PK.app.openModal({ title: I.get('note', 40) + ' Novo recado', body: '<div class="pq-grid">' + NOTES.map(function (n, i) {
-      return '<button class="pq focusable" data-pn="text:' + esc(n) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + esc(n) + '</button>'; }).join('') + '</div><p class="dt-hint">Outro texto? Diga “avisa que …” no microfone, ou escreva no celular.</p>',
-      actions: [{ label: 'Cancelar', act: 'close', ghost: true }] }, 'settings');
+  /* ---------- novo recado: texto, para quem (várias), quem escreve, quando some, em quais telas ---------- */
+  var nn = null, EXP = [['1h', '1 hora'], ['tonight', 'Hoje à noite'], ['tomorrow', 'Amanhã'], ['3d', '3 dias'], ['7d', '1 semana'], ['never', 'Nunca']];
+  function expiresAt(k) {
+    var d = new Date();
+    if (k === '1h') return new Date(d.getTime() + 3600000); if (k === 'tonight') { d.setHours(23, 59, 0, 0); return d; }
+    if (k === 'tomorrow') { d = U.addDays(U.startOfDay(d), 1); d.setHours(23, 59, 0, 0); return d; }
+    if (k === '3d') return U.addDays(d, 3); if (k === '7d') return U.addDays(d, 7); return null;
   }
+  function newNoteModal(st) {
+    st = st || PK.app.state();
+    if (!nn) nn = { text: '', to: [], by: (st.members.filter(function (m) { return !m.kid; })[0] || st.members[0] || {}).id, exp: 'tonight', screens: 'all' };
+    var chip = function (attr, on, label, extra) { return '<button class="chip focusable' + (on ? ' on' : '') + '" data-nn="' + attr + '">' + (extra || '') + label + (on ? '<i class="chk">' + I.get('check', 14, ' stroke-width="3"') + '</i>' : '') + '</button>'; };
+    var body = '<div class="nn"><div class="nn-sec">Recado</div><div class="pq-grid nn-txt">' + NOTES.map(function (n, i) { return '<button class="pq focusable' + (nn.text === n ? ' on' : '') + '" data-nn="text:' + esc(n) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + esc(n) + '</button>'; }).join('') + '</div>' +
+      '<input class="nn-in focusable" id="nn-in" type="text" placeholder="Ou escreva aqui (teclado da TV)…" value="' + esc(NOTES.indexOf(nn.text) < 0 ? nn.text : '') + '">' +
+      '<div class="nn-sec">Para quem</div><div class="nn-row">' + chip('to:all', !nn.to.length, 'Todos', I.get('users', 22) + ' ') + st.members.map(function (m) { return chip('to:' + m.id, nn.to.indexOf(m.id) >= 0, esc(first(m)), PK.views.av(m, 32)); }).join('') + '</div>' +
+      '<div class="nn-sec">Quem escreve</div><div class="nn-row">' + st.members.map(function (m) { return chip('by:' + m.id, nn.by === m.id, esc(first(m)), PK.views.av(m, 32)); }).join('') + '</div>' +
+      '<div class="nn-sec">Some em</div><div class="nn-row">' + EXP.map(function (e) { return chip('exp:' + e[0], nn.exp === e[0], e[1]); }).join('') + '</div>' +
+      '<div class="nn-sec">Mostrar em</div><div class="nn-row">' + chip('scr:all', nn.screens === 'all', 'Todas as telas da casa', I.get('tv', 22) + ' ') + chip('scr:this', nn.screens === 'this', 'Só esta TV') + '</div></div>';
+    var ov = document.querySelector('.overlay.dyn.nn-ov'); if (ov) ov.parentNode.removeChild(ov);
+    var o = PK.app.openModal({ title: I.get('note', 40) + ' Novo recado', body: body, actions: [{ label: I.get('check', 22) + ' Enviar recado', act: 'nn-send' }, { label: 'Cancelar', act: 'nn-cancel', ghost: true }] }, 'detail wide');
+    o.classList.add('nn-ov');
+  }
+  function nnCmd(v) {
+    var i = v.indexOf(':'), a = v.slice(0, i), arg = v.slice(i + 1), inp = document.getElementById('nn-in'); if (inp && inp.value) nn.text = inp.value;
+    if (a === 'text') nn.text = arg;
+    if (a === 'to') { if (arg === 'all') nn.to = []; else { var ix = nn.to.indexOf(arg); if (ix >= 0) nn.to.splice(ix, 1); else nn.to.push(arg); } }
+    if (a === 'by') nn.by = arg; if (a === 'exp') nn.exp = arg; if (a === 'scr') nn.screens = arg;
+    var keep = v; newNoteModal(); var b = document.querySelector('[data-nn="' + keep + '"]'); if (b) PK.nav.focus(b, true);
+  }
+  function nnSend() {
+    var inp = document.getElementById('nn-in'); if (inp && inp.value.trim()) nn.text = inp.value.trim();
+    if (!nn.text) { PK.toast('Escolha ou escreva o recado'); return null; }
+    var st = PK.app.state(), toFm = nn.to.map(function (id) { var m = member(st, id); return (m && m.familyMemberId) || id; }), ex = expiresAt(nn.exp);
+    var n = { text: nn.text, by: nn.by, to: toFm, expires_at: ex ? ex.toISOString() : null, device_ids: nn.screens === 'this' ? [PK.api.deviceId()] : null };
+    nn = null; return n;
+  }
+  // "Vi": várias pessoas de uma vez
+  var seenSel = null;
+  function seenModal(st, noteId) {
+    var n = (st.notes || []).filter(function (x) { return x.id === noteId; })[0]; if (!n) return;
+    if (!seenSel || seenSel.id !== noteId) seenSel = { id: noteId, ids: [] };
+    var already = (n.seenBy || []).map(function (id) { var m = member(st, id); return m && m.id; });
+    var ov = document.querySelector('.overlay.dyn.seen-ov'); if (ov) ov.parentNode.removeChild(ov);
+    var o = PK.app.openModal({ title: I.get('check', 36) + ' Quem viu este recado?', body: '<p class="seen-q">“' + esc(n.text) + '”</p><div class="voters">' + st.members.map(function (m, i) {
+      var was = already.indexOf(m.id) >= 0, on = was || seenSel.ids.indexOf(m.id) >= 0;
+      return '<button class="voter focusable' + (on ? ' on' : '') + (was ? ' was' : '') + '" data-seen2="' + esc(m.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + PK.views.av(m, 96) + '<span>' + esc(first(m)) + (was ? ' · já viu' : '') + '</span>' + (on ? '<i class="chk">' + I.get('check', 22, ' stroke-width="3"') + '</i>' : '') + '</button>';
+    }).join('') + '</div>', actions: [{ label: I.get('check', 22) + ' Confirmar', act: 'seen-ok' }, { label: 'Cancelar', act: 'close', ghost: true }] }, 'settings');
+    o.classList.add('seen-ov');
+  }
+  function seenToggle(id) { var ix = seenSel.ids.indexOf(id); if (ix >= 0) seenSel.ids.splice(ix, 1); else seenSel.ids.push(id); seenModal(PK.app.state(), seenSel.id); var b = document.querySelector('[data-seen2="' + id + '"]'); if (b) PK.nav.focus(b, true); }
+  function seenTake() { var s = seenSel; seenSel = null; return s; }
   function quickAddModal(st, listId) {
     var l = st.lists.filter(function (x) { return x.id === listId; })[0] || st.lists[0]; if (!l) return;
     var have = {}; l.items.forEach(function (i) { if (!i.done) have[i.title.toLowerCase()] = 1; });
@@ -223,7 +276,7 @@ PK.plus = (function () {
 
   return {
     timersView: timersView, timerCmd: timerCmd, second: second, notesView: notesView, countdowns: countdowns, bills: bills,
-    whoModal: whoModal, newNoteModal: newNoteModal, quickAddModal: quickAddModal, missionModal: missionModal, nm: nm, MISSIONS: MISSIONS,
+    whoModal: whoModal, newNoteModal: newNoteModal, nnCmd: nnCmd, nnSend: nnSend, nnCancel: function () { nn = null; }, seenModal: seenModal, seenToggle: seenToggle, seenTake: seenTake, quickAddModal: quickAddModal, missionModal: missionModal, nm: nm, MISSIONS: MISSIONS,
     openRecipe: openRecipe, recipeCmd: recipeCmd, recipeOpen: function () { return !!recipe; }, closeRecipe: function () { recipe = null; }, timersCount: function () { return timers.length; },
     stopRinging: function () { ringing().forEach(function (t) { timers = timers.filter(function (x) { return x.id !== t.id; }); delete rang[t.id]; }); U.store.set('tvTimers', timers); clearInterval(beepT); beepT = null; chip(); }
   };

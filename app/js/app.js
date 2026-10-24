@@ -261,6 +261,7 @@
     if (!first) setTimeout(PK.nav.reset, 20);
   }
   PK.app.refresh = function () { refreshData(); };
+  PK.app.ui = function () { return ui; };
   PK.app.refreshView = function (v) { if (ui.view === v) render(); };
   PK.app.openModal = openModal; PK.app.fillModal = fillModal; PK.app.qr = function (id, t, s) { qr(id, t, s); };
   function openOverlay(id) {
@@ -440,18 +441,29 @@
 
   /* ================= CLIQUES (OK = click) ================= */
   document.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('[data-pt],[data-pn],[data-pq],[data-nm],[data-pm],[data-rc],[data-tdo],[data-noteby],[data-seenby],[data-vote],[data-dev],[data-open],[data-subtask],[data-tview],[data-dview],[data-wo],[data-view],[data-app],[data-goto],[data-day],[data-project],[data-chore],[data-ag],[data-list],[data-item],[data-set],[data-say],[data-act]') : null;
+    var t = e.target.closest ? e.target.closest('[data-pt],[data-pn],[data-pq],[data-nm],[data-pm],[data-rc],[data-tdo],[data-noteby],[data-seenby],[data-nn],[data-seen2],[data-tf],[data-vote],[data-dev],[data-open],[data-subtask],[data-tview],[data-dview],[data-wo],[data-view],[data-app],[data-goto],[data-day],[data-project],[data-chore],[data-ag],[data-list],[data-item],[data-set],[data-say],[data-act]') : null;
     if (!t) return;
     var a = function (n) { return t.getAttribute(n); };
     // ---- recursos vindos do nest-hub ----
     if (a('data-pt')) { PK.plus.timerCmd(a('data-pt')); render(); return; }
     if (a('data-pn')) {
       var pn = a('data-pn'), ci2 = pn.indexOf(':');
-      if (pn === 'new') { var cc = (state.settings && state.settings.content) || {}; if (PK.data.mode() === 'live' && cc.noteWrite === false) { PK.toast('Ative “Escrever recados” para esta TV em planknect.com › Configurações › Dispositivos'); return; } PK.plus.newNoteModal(); }
-      else if (pn.slice(0, ci2) === 'seen') PK.plus.whoModal(state, 'Quem está vendo este recado?', 'seenby', pn.slice(ci2 + 1));
+      if (pn === 'new') { var cc = (state.settings && state.settings.content) || {}; if (PK.data.mode() === 'live' && cc.noteWrite === false) { PK.toast('Ative “Escrever recados” para esta TV em planknect.com › Configurações › Dispositivos'); return; } PK.plus.newNoteModal(state); }
+      else if (pn.slice(0, ci2) === 'seen') PK.plus.seenModal(state, pn.slice(ci2 + 1));
       else if (pn.slice(0, ci2) === 'text') { closeOverlay(); PK.plus.whoModal(state, 'Quem está escrevendo?', 'noteby', pn.slice(ci2 + 1)); }
       return;
     }
+    if (a('data-tf')) { // filtro de tarefas: liga/desliga (dentro do modal ou no chip ✕ do painel)
+      var tp2 = a('data-tf'), ix2 = tp2.indexOf(':'), tk = tp2.slice(0, ix2), tv2 = tp2.slice(ix2 + 1);
+      ui.tf = ui.tf || {}; ui.tf[tk] = ui.tf[tk] || []; var at = ui.tf[tk].indexOf(tv2); if (at >= 0) ui.tf[tk].splice(at, 1); else ui.tf[tk].push(tv2);
+      var mb = document.querySelector('.overlay.dyn.tf-ov .modal-body');
+      if (mb) { mb.innerHTML = V.tfModalBody(state, ui.tf); PK.nav.focus(mb.querySelector('[data-tf="' + tp2 + '"]'), true); }
+      var pnl2 = $('prio-panel'); if (pnl2) pnl2.innerHTML = V.prioPanel(state, ui.project, ui.tview, ui.tf);
+      if (!mb) PK.nav.focus(document.querySelector('#prio-panel .tf-open'), true);
+      return;
+    }
+    if (a('data-nn')) { PK.plus.nnCmd(a('data-nn')); return; }
+    if (a('data-seen2')) { PK.plus.seenToggle(a('data-seen2')); return; }
     if (a('data-seenby')) { closeOverlay(); PK.data.setNoteSeen(a('data-seenby'), a('data-m')).then(refreshData).then(function () { PK.toast('Marcado como visto'); }).catch(function (e) { PK.toast(PK.writeErr(e)); }); return; }
     if (a('data-noteby')) { var txt = a('data-noteby'); closeOverlay(); PK.data.addNote(txt, a('data-m')).then(function () { return PK.data.broadcast({ kind: 'family', icon: 'note', title: txt, ttl: 10 }).catch(function () {}); }).then(refreshData).then(function () { PK.toast('Recado enviado'); }).catch(function (e) { PK.toast(PK.writeErr(e)); }); return; }
     if (a('data-pq')) { var pq = a('data-pq').split('|'); t.classList.add('added'); t.disabled = true; PK.data.addListItems(pq[0], [pq[1]]).then(refreshData).then(function () { PK.toast(U.esc(pq[1]) + ' na lista'); }).catch(function (e) { PK.toast(PK.writeErr(e)); }); return; }
@@ -497,6 +509,19 @@
       var vt0 = PK.voice.debug().played;
       PK.voice.speak('Good evening. This is Alfred, testing the voice.', PK.settings.get('ai.lang') || 'en-GB', { silent: function () { PK.toast('Sem voz: o aparelho não tem voz própria e a do PlanKnect falhou'); } });
       setTimeout(function () { var d = PK.voice.debug(); PK.toast((d.played > vt0 ? '✓ Áudio tocou' : '✗ Não tocou') + ' · voz ' + (d.cloud ? 'PlanKnect' : 'da TV') + (d.lastErr ? ' · ' + U.esc(d.lastErr) : ''), 8000); }, 7000);
+      return;
+    }
+    if (act === 'tf-open') { var tov = openModal({ title: I.get('sliders', 36) + ' Filtrar tarefas', body: V.tfModalBody(state, ui.tf), actions: [{ label: 'Pronto', act: 'close' }, { label: 'Limpar tudo', act: 'tf-clear', ghost: true }] }, 'detail wide'); tov.classList.add('tf-ov'); return; }
+    if (act === 'tf-clear') { ui.tf = {}; var tmb = document.querySelector('.overlay.dyn.tf-ov .modal-body'); if (tmb) tmb.innerHTML = V.tfModalBody(state, ui.tf); var pnl3 = $('prio-panel'); if (pnl3) pnl3.innerHTML = V.prioPanel(state, ui.project, ui.tview, ui.tf); if (!tmb) PK.nav.focus(document.querySelector('#prio-panel .tf-open'), true); return; }
+    if (act === 'nn-cancel') { PK.plus.nnCancel(); closeOverlay(); return; }
+    if (act === 'nn-send') {
+      var note = PK.plus.nnSend(); if (!note) return; closeOverlay();
+      PK.data.addNote(note).then(function () { return PK.data.broadcast({ kind: 'family', icon: 'note', title: note.text, ttl: 10 }).catch(function () {}); }).then(refreshData).then(function () { PK.toast('Recado enviado'); }).catch(function (e) { PK.toast(PK.writeErr(e)); });
+      return;
+    }
+    if (act === 'seen-ok') {
+      var sn = PK.plus.seenTake(); closeOverlay(); if (!sn || !sn.ids.length) return;
+      Promise.all(sn.ids.map(function (id) { return PK.data.setNoteSeen(sn.id, id); })).then(refreshData).then(function () { PK.toast('Marcado como visto (' + sn.ids.length + ')'); }).catch(function (e) { PK.toast(PK.writeErr(e)); });
       return;
     }
     if (act === 'meeting-now') { closeOverlay(); M.meeting.toggle(true, state); }

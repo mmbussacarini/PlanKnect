@@ -520,14 +520,55 @@ PK.views = (function () {
     return '<div class="proj-grid"><div class="proj-list"><h2>' + chevron() + 'PROJETOS EM ABERTO</h2>' + left + '</div>' +
       '<div class="card prio-panel" id="prio-panel">' + prioPanel(state, selected || 'all', tview) + '</div></div>';
   }
-  var TVIEWS = [['prio', 'Prioridades'], ['today', 'Hoje'], ['late', 'Atrasadas'], ['week', 'Esta semana'], ['org', 'Por organização'], ['person', 'Por pessoa']];
-  function prioPanel(state, pid, tv) {
-    var now = new Date(), sod = U.startOfDay(now), eow = U.addDays(sod, 7); tv = tv || 'prio';
-    var open = sortTasks(state.tasks.filter(function (t) { return t.status !== 'done' && inGroup(pid, t); }), now);
+  var TVIEWS = [['prio', 'Prioridades'], ['today', 'Hoje'], ['late', 'Atrasadas'], ['week', 'Esta semana'], ['status', 'Por status'], ['project', 'Por projeto'], ['org', 'Por organização'], ['person', 'Por pessoa']];
+  /* filtros combináveis: organização, pessoa, prioridade, status, prazo (vários de cada) */
+  var TF_PRIO = [['urgent', 'Urgente'], ['high', 'Alta'], ['medium', 'Média'], ['low', 'Baixa']], TF_STAT = [['todo', 'A fazer'], ['in_progress', 'Em andamento'], ['review', 'Em revisão']];
+  var TF_DUE = [['late', 'Atrasadas'], ['today', 'Hoje'], ['week', 'Próximos 7 dias'], ['later', 'Depois'], ['none', 'Sem prazo']];
+  function tfEmpty(tf) { return !tf || !['orgs', 'people', 'prio', 'status', 'due'].some(function (k) { return tf[k] && tf[k].length; }); }
+  function tfPass(tf, t, now) {
+    if (tfEmpty(tf)) return true;
+    var sod = U.startOfDay(now), eow = U.addDays(sod, 7);
+    if (tf.orgs && tf.orgs.length && tf.orgs.indexOf(t.org || '—') < 0) return false;
+    if (tf.people && tf.people.length && !tf.people.some(function (id) { return t.assignee === id || (t.personal || []).indexOf(id) >= 0; })) return false;
+    if (tf.prio && tf.prio.length && tf.prio.indexOf(t.priority || 'medium') < 0) return false;
+    if (tf.status && tf.status.length && tf.status.indexOf(t.status === 'open' ? 'todo' : (t.status || 'todo')) < 0) return false;
+    if (tf.due && tf.due.length) {
+      var k = !t.due ? 'none' : t.due < sod ? 'late' : U.sameDay(t.due, now) ? 'today' : t.due < eow ? 'week' : 'later';
+      if (tf.due.indexOf(k) < 0) return false;
+    }
+    return true;
+  }
+  function tfLabel(state, k, v) {
+    if (k === 'people') { var m = state.members.filter(function (x) { return x.id === v; })[0]; return m ? String(m.name).split(' ')[0] : v; }
+    var L = { prio: TF_PRIO, status: TF_STAT, due: TF_DUE }[k]; if (L) return (L.filter(function (x) { return x[0] === v; })[0] || [0, v])[1];
+    return v;
+  }
+  function tfBar(state, tf) {
+    var chips = [];
+    ['orgs', 'people', 'prio', 'status', 'due'].forEach(function (k) { (tf && tf[k] || []).forEach(function (v) { chips.push('<button class="tf-chip focusable" data-tf="' + k + ':' + esc(v) + '">' + esc(tfLabel(state, k, v)) + ' ' + I.get('x', 14) + '</button>'); }); });
+    return '<div class="tf-bar"><button class="tf-open focusable" data-act="tf-open">' + I.get('sliders', 20) + ' Filtros' + (chips.length ? ' <b>' + chips.length + '</b>' : '') + '</button>' + chips.join('') + (chips.length ? '<button class="tf-clear focusable" data-act="tf-clear">Limpar</button>' : '') + '</div>';
+  }
+  function tfModalBody(state, tf) {
+    tf = tf || {};
+    var open = state.tasks.filter(function (t) { return t.status !== 'done'; }), orgs = {}; open.forEach(function (t) { orgs[t.org || '—'] = (orgs[t.org || '—'] || 0) + 1; });
+    var grp = function (title, k, items) { return '<div class="nn-sec">' + title + '</div><div class="nn-row">' + items.map(function (it, i) { var on = (tf[k] || []).indexOf(it[0]) >= 0; return '<button class="chip focusable' + (on ? ' on' : '') + '" data-tf="' + k + ':' + esc(it[0]) + '"' + (k === 'orgs' && i === 0 ? ' data-autofocus' : '') + '>' + (it[2] || '') + esc(it[1]) + (on ? '<i class="chk">' + I.get('check', 14, ' stroke-width="3"') + '</i>' : '') + '</button>'; }).join('') + '</div>'; };
+    return grp('Organização', 'orgs', Object.keys(orgs).sort(function (a, b) { return orgs[b] - orgs[a]; }).map(function (o) { return [o, o + ' · ' + orgs[o]]; })) +
+      grp('Pessoa', 'people', state.members.filter(function (m) { return !m.kid || m.dest; }).map(function (m) { return [m.id, String(m.name).split(' ')[0], av(m, 28) + ' ']; })) +
+      grp('Prioridade', 'prio', TF_PRIO) + grp('Status', 'status', TF_STAT) + grp('Prazo', 'due', TF_DUE);
+  }
+  function prioPanelF(state, pid, tv, tf) { return prioPanel(state, pid, tv, tf); }
+  function prioPanel(state, pid, tv, tf) {
+    var now = new Date(), sod = U.startOfDay(now), eow = U.addDays(sod, 7); tv = tv || 'prio'; tf = tf || (PK.app.ui && PK.app.ui().tf);
+    var open = sortTasks(state.tasks.filter(function (t) { return t.status !== 'done' && inGroup(pid, t) && tfPass(tf, t, now); }), now);
     var groups;
     if (tv === 'today') groups = [['Hoje', open.filter(function (t) { return t.due && U.sameDay(t.due, now); }), '']];
     else if (tv === 'late') groups = [['Atrasadas', open.filter(function (t) { return t.due && t.due < sod; }), 'red']];
     else if (tv === 'week') groups = [0, 1, 2, 3, 4, 5, 6].map(function (i) { var d = U.addDays(sod, i); return [i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : U.DAYS[d.getDay()] + ' ' + d.getDate(), open.filter(function (t) { return t.due && U.sameDay(t.due, d); }), '']; });
+    else if (tv === 'status') groups = TF_STAT.map(function (s) { return [s[1], open.filter(function (t) { return (t.status === 'open' ? 'todo' : t.status || 'todo') === s[0]; }), s[0] === 'todo' ? '' : '']; });
+    else if (tv === 'project') {
+      var bp = {}, op = []; open.forEach(function (t) { var k = t.project || 'Sem projeto'; if (!bp[k]) { bp[k] = []; op.push(k); } bp[k].push(t); });
+      op.sort(function (a, b) { return bp[b].length - bp[a].length; }); groups = op.map(function (k) { return [k, bp[k], k === 'Sem projeto' ? 'muted' : '']; });
+    }
     else if (tv === 'org' || tv === 'person') {
       var by = {}, order = [];
       open.forEach(function (t) {
@@ -547,12 +588,12 @@ PK.views = (function () {
     if (!p && /^person:/.test(pid)) { var pm = (state.members || []).filter(function (m) { return 'person:' + m.id === pid; })[0]; if (pm) p = { name: 'Tarefas de ' + String(pm.name).split(' ')[0] }; }
     var real = state.projects.filter(function (x) { return x.id === pid; })[0];
     if (!p && /^org:/.test(pid)) p = { name: pid.slice(4) };
-    return tabs + '<div class="pp-head"><h2>' + chevron() + (TVIEWS.filter(function (v) { return v[0] === tv; })[0][1]).toUpperCase() + (p ? ' · ' + esc(p.name.toUpperCase()) : '') + '</h2>' + (real ? '<button class="btn ghost focusable pp-detail" data-open="project:' + esc(real.id) + '">' + I.get('briefcase', 22) + ' Detalhes do projeto ›</button>' : '') + '</div>' +
+    return tabs + tfBar(state, tf) + '<div class="pp-head"><h2>' + chevron() + (TVIEWS.filter(function (v) { return v[0] === tv; })[0][1]).toUpperCase() + (p ? ' · ' + esc(p.name.toUpperCase()) : '') + '</h2>' + (real ? '<button class="btn ghost focusable pp-detail" data-open="project:' + esc(real.id) + '">' + I.get('briefcase', 22) + ' Detalhes do projeto ›</button>' : '') + '</div>' +
       groups.filter(function (g) { return g[1].length; }).map(function (g) {
         return '<div class="pg"><div class="pg-h ' + g[2] + '">' + esc(g[0]) + ' <span>' + g[1].length + '</span></div>' + g[1].map(function (t) { return taskRow(t, now, real ? 'inproj' : ''); }).join('') + '</div>';
       }).join('') + (open.length ? '' : '<div class="empty">' + (real ? 'Nenhuma tarefa aberta neste projeto.<br><small>Abra “Detalhes do projeto” para ver marcos e equipe.</small>' : /^person:/.test(pid) ? 'Nada pendente no quadro pessoal.<br><small>Tarefas criadas no quadro pessoal dessa pessoa aparecem aqui.</small>' : 'Nada pendente aqui.') + '</div>');
   }
 
   return { home: home, weather: weather, watch: watch, devices: devices, SERVICE: SERVICE, agenda: agenda, dayDetail: dayDetail, chores: chores, lists: lists, listPanel: listPanel,
-    work: work, prioPanel: prioPanel, TYPE: TYPE, title: title, av: av, projChip: projChip, statusLabel: statusLabel, taskRow: taskRow, PRIO: PRIO };
+    work: work, prioPanel: prioPanel, tfModalBody: tfModalBody, TYPE: TYPE, title: title, av: av, projChip: projChip, statusLabel: statusLabel, taskRow: taskRow, PRIO: PRIO };
 })();

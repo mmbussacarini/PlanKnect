@@ -85,3 +85,16 @@ Please add the ones you can build now, and list the rest with the shape you'd se
 4. `dealId` (or `projectId`) on the meeting event so the TV can show the linked deal; and a reviewed **"add to deal"** action (`POST /events/meeting:<uuid>/suggestions/:id { action: "accept", target: "deal" }`) if you support it.
 5. Optional: slide/screen-share snapshots from the bot (`GET /events/meeting:<uuid>/frames?since=` → signed image URLs) so the TV can show what is being presented.
 6. Route naming: your note mentions `/events/:id/meeting/live`; the deployed route is `/events/meeting:<uuid>/live` — the TV uses the deployed one. Please keep it.
+
+---
+
+# Round 3 — Notes (Recados) from the TV
+
+The TV's new-note form now sends:
+```json
+POST /notes { "text": "Jantar pronto!", "by": "<members[].id>", "to": ["<familyMemberId>", "..."], "expires_at": "2026-10-25T23:59:00+11:00", "device_ids": ["tv-…"] }
+```
+- `to` = who the note is for (empty = everyone). Please store it and return it in `GET /notes` / dashboard `notes[]`.
+- `expires_at` = when it disappears (1 h, tonight, tomorrow, 3 days, 1 week, or null = never). Please honour it (omit expired notes).
+- `device_ids` = show only on these screens (null = all screens of the household). Please store and filter per device, or return it so the TV filters.
+- "Seen" now supports several people at once (the TV calls `POST /notes/:id/seen` once per member).

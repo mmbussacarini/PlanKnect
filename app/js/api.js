@@ -280,7 +280,8 @@ PK.api = (function () {
     setNoteSeen: function (id, member) { var m = (PK.app.state().members || []).filter(function (x) { return x.id === member; })[0]; return req('POST', '/api/tv/notes/' + enc(id) + '/seen', { member: (m && m.familyMemberId) || member }); },
     // respostas enviadas pelo celular (planknect.com/tv/remote) para esta TV
     assistantPending: function (since) { return req('GET', '/api/tv/assistant/pending?since=' + encodeURIComponent(since)); },
-    addNote: function (text, by) { return req('POST', '/api/tv/notes', { text: text, by: by }); },
+    // recado: { text, by, to:[familyMemberId], expires_at, device_ids } (to/expires_at/device_ids: pedidos ao PlanKnect)
+    addNote: function (text, by) { var b = typeof text === 'object' ? text : { text: text, by: by }; return req('POST', '/api/tv/notes', b); },
     alerts: function (since) { return req('GET', '/api/tv/alerts?since=' + (since || 0)); },
     broadcast: function (alert) { return req('POST', '/api/tv/alerts', alert); },
     setSubtask: function (tid, sid, done) { return req('POST', '/api/tv/tasks/' + enc(tid) + '/subtasks/' + enc(sid), { done: done }); },
@@ -456,7 +457,7 @@ PK.mock = (function () {
     saved.seen = saved.seen || {}; var arr = saved.seen[id] = saved.seen[id] || [];
     if (arr.indexOf(member) < 0) arr.push(member); persist(); return Promise.resolve({ ok: true });
   }
-  function addNote(text, by) { saved.extraNotes = (saved.extraNotes || []).concat([{ id: 'x' + U.uid(), by: by || 'm', text: text, at: new Date().toISOString(), seenBy: [] }]); persist(); return Promise.resolve({ ok: true }); }
+  function addNote(text, by) { var o = typeof text === 'object' ? text : { text: text, by: by }; saved.extraNotes = (saved.extraNotes || []).concat([{ id: 'x' + U.uid(), by: o.by || 'm', text: o.text, to: o.to || [], expires_at: o.expires_at || null, device_ids: o.device_ids || null, at: new Date().toISOString(), seenBy: [] }]); persist(); return Promise.resolve({ ok: true }); }
   function notesNow() {
     var seen = saved.seen || {};
     return (saved.extraNotes || []).map(function (n) { var c = {}; for (var k in n) c[k] = n[k]; c.at = new Date(n.at); return c; }).reverse().concat(notes).map(function (n) {
