@@ -673,3 +673,4 @@ body.wm-on #ambient, body.wm-on #meeting, body.wm-on #fx, body.wm-on #pk-splash 
 .pj-prio i { display: block; }
 html.wm-sim, html.wm-sim body { background: #050a1c !important; }
 html.no-anim *, html.no-anim *:before, html.no-anim *:after { animation-duration: 0s !important; animation-delay: 0s !important; transition: none !important; }
+.proj.person .proj-top .av { margin-right: 10px; flex-shrink: 0; } .proj.person { border-left-width: 5px; }

@@ -15,14 +15,14 @@ PK.normalize = (function () {
       id: e.id, title: e.title, type: e.type || 'event',
       start: U.toDate(e.start), end: U.toDate(e.end || e.start), allDay: !!e.allDay,
       members: e.members || [], location: e.location || '', video: e.video || null,
-      color: e.color || null, private: !!e.private
+      color: e.color || null, private: !!e.private, boardId: e.boardId || null, projectId: e.projectId || null
     };
   }
   function task(t) {
     return {
       id: t.id, title: t.title, project: t.project || '', projectId: t.projectId || null,
       priority: t.priority || 'medium', due: U.toDate(t.due), assignee: t.assignee || null,
-      status: t.status || 'open', url: t.url || null, org: t.org || null, projectId: t.projectId || null, project: t.project || '', description: t.description || ''
+      status: t.status || 'open', boardId: t.boardId || null, url: t.url || null, org: t.org || null, projectId: t.projectId || null, project: t.project || '', description: t.description || ''
     };
   }
   // Um membro por pessoa: se o PlanKnect mandar duplicados (mesmo nome), junta os ids
@@ -58,8 +58,22 @@ PK.normalize = (function () {
     list.forEach(function (p) { if (!p.color) { var h = 0; String(p.id || p.name).split('').forEach(function (c) { h = (h * 33 + c.charCodeAt(0)) >>> 0; }); p.color = PCOL[h % PCOL.length]; } });
     return list;
   }
+  /* Quadro pessoal de cada pessoa (memberDestinations): tarefas e eventos desse quadro são dela */
+  function personal(b, out) {
+    var dests = b.memberDestinations || [], byBoard = {};
+    out.members.forEach(function (m) {
+      var d = dests.filter(function (x) { return (x.familyMemberId && x.familyMemberId === m.familyMemberId) || (x.userId && x.userId === m.id); })[0];
+      if (d) { m.dest = { boardId: d.boardId, projectId: d.projectId, organizationId: d.organizationId, userId: d.userId || null }; (byBoard[d.boardId] = byBoard[d.boardId] || []).push(m.id); }
+    });
+    out.tasks.forEach(function (t) { var who = byBoard[t.boardId]; if (who) { t.personal = who; if (!t.assignee && who.length === 1) t.assignee = who[0]; } });
+    out.events.forEach(function (e) { var who = byBoard[e.boardId]; if (who) { e.personal = who; who.forEach(function (id) { if (e.members.indexOf(id) < 0) e.members.push(id); }); } });
+    return out;
+  }
   function bundle(b) {
     b = dedupe(b);
+    return personal(b, bundle0(b));
+  }
+  function bundle0(b) {
     return {
       household: familyCalendar(b),
       members: b.members || [],
@@ -217,7 +231,13 @@ PK.api = (function () {
     meetingLive: function (id, since) { return req('GET', '/api/tv/events/' + enc(id).replace(/%3A/gi, ':') + '/live?since=' + (since || 0)); },
     meetingInsights: function (id) { return req('GET', '/api/tv/events/' + enc(id).replace(/%3A/gi, ':') + '/insights'); },
     meetingSuggestion: function (id, sid, action) { return req('POST', '/api/tv/events/' + enc(id).replace(/%3A/gi, ':') + '/suggestions/' + enc(sid), { action: action }); },
-    addTask: function (t) { return req('POST', '/api/tv/tasks', t); },
+    // tarefa nova: no quadro pessoal da pessoa (memberDestinations) ou no projeto/quadro escolhido
+    addTask: function (t) {
+      var m = t.member && (PK.app.state().members || []).filter(function (x) { return x.id === t.member || x.id === t.assignee; })[0], d = m && m.dest;
+      var body = { title: t.title, projectId: t.projectId || (d && d.projectId), boardId: t.boardId || (d && d.boardId), due: t.due ? (t.due.toISOString ? t.due.toISOString().slice(0, 10) : t.due) : undefined, priority: t.priority };
+      var who = t.assignee || (d && d.userId); if (who && (!d || d.userId)) body.assignee = d && d.userId ? d.userId : who;
+      return req('POST', '/api/tv/tasks', body);
+    },
     // Alfred (Jarvis): briefing e sugestões proativas geradas no PlanKnect
     aiBriefing: function (q) { return req('GET', '/api/tv/ai/briefing' + qs(q)); },
     aiSuggestions: function (q) { return req('GET', '/api/tv/ai/suggestions' + qs(q)); },

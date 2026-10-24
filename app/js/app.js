@@ -441,7 +441,7 @@
     if (a('data-app')) { PK.tv.launch(a('data-app'), a('data-name')); return; }
     if (a('data-goto')) { setView(a('data-goto')); return; }
     if (a('data-day') !== null) { var d = V.dayDetail(state, +a('data-day'), ui.agenda); openModal({ title: d.title, body: d.body, wide: true, actions: [{ label: 'Fechar', act: 'close', ghost: true }] }); return; }
-    if (a('data-project')) { if (a('data-project') !== 'all') PK.details.open('project', a('data-project')); else selectProject('all'); return; }
+    if (a('data-project')) { var pj = a('data-project'); if (pj !== 'all' && pj.indexOf('person:') !== 0) PK.details.open('project', pj); else selectProject(pj); return; }
     if (a('data-chore')) { toggleChore(t); return; }
     if (a('data-ag')) { agendaControl(a('data-ag')); return; }
     if (a('data-list')) { selectList(a('data-list')); return; }

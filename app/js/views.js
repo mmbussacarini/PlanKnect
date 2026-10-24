@@ -470,18 +470,26 @@ PK.views = (function () {
   }
 
   /* ================= TRABALHO ================= */
+  // grupo da esquerda: todas, uma pessoa (quadro pessoal ou atribuída) ou um projeto
+  function inGroup(pid, t) {
+    if (!pid || pid === 'all') return true;
+    if (pid.indexOf('person:') === 0) { var id = pid.slice(7); return t.assignee === id || (t.personal || []).indexOf(id) >= 0; }
+    return t.projectId === pid;
+  }
   function statusLabel(s) { return ({ planning: 'Planejamento', active: 'Em andamento', in_progress: 'Em andamento', on_hold: 'Pausado', completed: 'Concluído', review: 'Em revisão' })[s] || s; }
   function work(state, selected) {
     var now = new Date();
     var open = state.tasks.filter(function (t) { return t.status !== 'done'; });
-    var list = [{ id: 'all', name: 'Todas as prioridades', org: open.length + ' tasks abertas', all: true }].concat(state.projects);
+    var people = (state.members || []).filter(function (m) { return !m.kid && (m.dest || open.some(function (t) { return t.assignee === m.id; })); })
+      .map(function (m) { return { id: 'person:' + m.id, name: String(m.name).split(' ')[0], org: m.dest ? 'Quadro pessoal + atribuídas' : 'Atribuídas a ' + String(m.name).split(' ')[0], color: m.color || '#a78bfa', person: m }; });
+    var list = [{ id: 'all', name: 'Todas as prioridades', org: open.length + ' tasks abertas', all: true }].concat(people, state.projects);
     var left = list.map(function (p, i) {
-      var count = open.filter(function (t) { return p.all || t.projectId === p.id; }).length;
-      var overdue = open.filter(function (t) { return (p.all || t.projectId === p.id) && t.due && t.due < U.startOfDay(now); }).length;
-      return '<div class="proj focusable' + (selected === p.id ? ' selected' : '') + '" data-project="' + p.id + '"' + (i === 0 ? ' data-autofocus' : '') + ' style="--c:' + (p.color || '#94a3b8') + '">' +
-        '<div class="proj-top"><span class="proj-name">' + esc(p.name) + '</span><span class="proj-count">' + count + '</span></div>' +
+      var count = open.filter(function (t) { return inGroup(p.id, t); }).length;
+      var overdue = open.filter(function (t) { return inGroup(p.id, t) && t.due && t.due < U.startOfDay(now); }).length;
+      return '<div class="proj focusable' + (selected === p.id ? ' selected' : '') + (p.person ? ' person' : '') + '" data-project="' + p.id + '"' + (i === 0 ? ' data-autofocus' : '') + ' style="--c:' + (p.color || '#94a3b8') + '">' +
+        '<div class="proj-top">' + (p.person ? av(p.person, 34) : '') + '<span class="proj-name">' + esc(p.name) + '</span><span class="proj-count">' + count + '</span></div>' +
         '<div class="proj-org">' + esc(p.org || '') + (overdue ? ' · <b class="red">' + overdue + ' atrasada' + (overdue > 1 ? 's' : '') + '</b>' : '') + '</div>' +
-        (p.all ? '' : (p.progress != null ? '<div class="bar"><i style="width:' + Math.round(p.progress * 100) + '%"></i></div>' : '') +
+        (p.person ? '<div class="proj-ms">' + I.get('users', 18) + ' ' + esc(p.org) + '</div>' : p.all ? '' : (p.progress != null ? '<div class="bar"><i style="width:' + Math.round(p.progress * 100) + '%"></i></div>' : '') +
           '<div class="proj-ms">' + (function () { var nx = open.filter(function (t) { return t.projectId === p.id && t.due && t.due >= U.startOfDay(now); }).sort(function (a, b) { return a.due - b.due; })[0];
             return p.milestone ? I.get('flag', 20) + ' ' + esc(p.milestone.title) + ' · ' + U.dueLabel(U.toDate(p.milestone.due), now) : nx ? I.get('calendar', 18) + ' Próxima: ' + esc(nx.title).slice(0, 34) + ' · ' + U.dueLabel(nx.due, now) : (p.status ? esc(statusLabel(p.status)) : ''); })() + '</div>') +
         '</div>';
@@ -491,7 +499,7 @@ PK.views = (function () {
   }
   function prioPanel(state, pid) {
     var now = new Date(), sod = U.startOfDay(now), eow = U.addDays(sod, 7);
-    var open = sortTasks(state.tasks.filter(function (t) { return t.status !== 'done' && (pid === 'all' || t.projectId === pid); }), now);
+    var open = sortTasks(state.tasks.filter(function (t) { return t.status !== 'done' && inGroup(pid, t); }), now);
     var groups = [
       ['Atrasadas', open.filter(function (t) { return t.due && t.due < sod; }), 'red'],
       ['Hoje', open.filter(function (t) { return t.due && U.sameDay(t.due, now); }), ''],
@@ -499,6 +507,7 @@ PK.views = (function () {
       ['Depois / sem data', open.filter(function (t) { return !t.due || t.due >= eow; }), 'muted']
     ];
     var p = state.projects.filter(function (x) { return x.id === pid; })[0];
+    if (!p && /^person:/.test(pid)) { var pm = (state.members || []).filter(function (m) { return 'person:' + m.id === pid; })[0]; if (pm) p = { name: 'Tarefas de ' + String(pm.name).split(' ')[0] }; }
     return '<h2>' + chevron() + 'PRIORIDADES' + (p ? ' · ' + esc(p.name.toUpperCase()) : '') + '</h2>' +
       groups.filter(function (g) { return g[1].length; }).map(function (g) {
         return '<div class="pg"><div class="pg-h ' + g[2] + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(function (t) { return taskRow(t, now); }).join('') + '</div>';
