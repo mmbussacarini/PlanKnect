@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanKnect TV e Nest Hub</title>
+<style>
+  :root { --bg: #070b1f; --card: #111735; --line: rgba(255,255,255,.1); --text: #eef0ff; --muted: #9aa8d1; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: radial-gradient(900px 600px at 20% 0%, #1d1650, var(--bg)); color: var(--text); font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 30px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; } h1 img { width: 48px; }
+  p { color: var(--muted); margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  a.card { display: block; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
+  a.card b { display: block; font-size: 19px; margin-bottom: 4px; } a.card span { color: var(--muted); font-size: 15px; }
+  img.shot { width: 100%; border-radius: 16px; border: 1px solid var(--line); margin: 22px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1><img src="app/assets/logo.svg" alt="">PlanKnect</h1>
+  <p>O PlanKnect na TV e no Google Nest Hub.</p>
+  <div class="grid">
+    <a class="card" href="google-nest/"><b>Mostrar no Nest Hub</b><span>Abre o PlanKnect no Hub por Cast</span></a>
+    <a class="card" href="app/index.html?demo=1"><b>Ver a versão da TV</b><span>Demonstração com dados fictícios</span></a>
+    <a class="card" href="https://github.com/mmbussacarini/PlanKnect"><b>Instalar e usar</b><span>Guias da Samsung, LG e Nest Hub</span></a>
+  </div>
+  <img class="shot" src="screenshots/tv-home.png" alt="PlanKnect na TV">
+</main>
+</body>
+</html>

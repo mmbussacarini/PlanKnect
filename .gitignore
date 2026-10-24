@@ -1,0 +1,8 @@
+dist/
+node_modules/
+.DS_Store
+app/js/config.local.js
+agent/config.json
+*.p12
+*.wgt
+*.ipk

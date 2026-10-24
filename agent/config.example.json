@@ -1,0 +1,12 @@
+{
+  "port": 8787,
+  "tv": { "ip": "192.168.1.x", "mac": "xx:xx:xx:xx:xx:xx", "appId": "com.planknect.tv" },
+  "routines": {
+    "morning": { "start": "06:45", "days": [1, 2, 3, 4, 5] },
+    "bedtime": { "start": "20:00", "days": [0, 1, 2, 3, 4, 5, 6] }
+  },
+  "planknect": { "apiBase": "https://mfenmzwuosubzfuehywc.supabase.co/functions/v1/tv", "token": "", "owner": "m", "meetingLeadMin": 5 },
+  "thinq": { "pat": "", "country": "AU", "region": "kic", "pollSeconds": 60 },
+  "doorbell": { "secret": "troque-isto" },
+  "nestHub": { "name": "Kitchen Display", "url": "https://planknect.com/hub/nest-hub.html", "keepAlive": true, "from": "06:00", "to": "22:00", "everySeconds": 120, "receiverId": "", "python": "python3" }
+}

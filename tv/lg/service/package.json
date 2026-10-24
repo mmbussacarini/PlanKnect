@@ -1,0 +1,6 @@
+{
+  "name": "com.planknect.tv.service",
+  "version": "0.1.0",
+  "description": "PlanKnect TV — avisos por cima de outros apps (Netflix, YouTube...)",
+  "main": "index.js"
+}

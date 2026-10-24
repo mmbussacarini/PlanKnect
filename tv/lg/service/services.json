@@ -1,0 +1,17 @@
+{
+  "id": "com.planknect.tv.service",
+  "description": "PlanKnect TV background alerts",
+  "services": [
+    {
+      "name": "com.planknect.tv.service",
+      "description": "Avisos de reunião, casa e família por cima de outros apps",
+      "commands": [
+        { "name": "configure", "description": "App manda a agenda e o token" },
+        { "name": "snooze", "description": "Adiar um aviso" },
+        { "name": "dismiss", "description": "Fechar um aviso" },
+        { "name": "notify", "description": "Mostrar um aviso agora" },
+        { "name": "status", "description": "Estado do serviço" }
+      ]
+    }
+  ]
+}

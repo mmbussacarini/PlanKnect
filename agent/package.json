@@ -1,0 +1,9 @@
+{
+  "name": "planknect-home-agent",
+  "version": "0.1.0",
+  "description": "Agente local do PlanKnect: liga a TV, rotinas, avisos por cima de qualquer app, LG ThinQ e campainha",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.16.0" }
+}

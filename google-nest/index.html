@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanKnect no Nest Hub</title>
+<style>
+  :root { --bg: #070b1f; --card: #111735; --line: rgba(255,255,255,.1); --text: #eef0ff; --muted: #9aa8d1; --accent: #7c5cff; --ok: #22c55e; --err: #f87171; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: radial-gradient(900px 600px at 20% 0%, #1d1650, var(--bg)); color: var(--text); font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; }
+  main { max-width: 560px; margin: 0 auto; }
+  .logo { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800; margin-bottom: 26px; }
+  .logo img { width: 44px; height: 44px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px; margin-bottom: 18px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  p { color: var(--muted); }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 16px 0 6px; }
+  input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: #0b1029; color: var(--text); font-size: 16px; }
+  button { width: 100%; margin-top: 18px; padding: 16px; border: 0; border-radius: 16px; background: linear-gradient(135deg, #6366f1, var(--accent)); color: #fff; font-size: 19px; font-weight: 800; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .ghost { background: rgba(255,255,255,.08); font-size: 16px; font-weight: 600; }
+  #st { margin-top: 14px; min-height: 24px; font-weight: 600; }
+  #st.ok { color: var(--ok); } #st.err { color: var(--err); }
+  ol { padding-left: 20px; color: var(--muted); } li { margin: 6px 0; }
+  a { color: #a5b4fc; }
+  code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="logo"><img src="../app/assets/logo.svg" alt="">PlanKnect</div>
+
+  <div class="card">
+    <h1>Mostrar no Nest Hub</h1>
+    <p>Abre o PlanKnect na tela do Google Nest Hub. Funciona no Chrome do Android, do Mac ou do Windows, na mesma rede Wi-Fi do Hub.</p>
+    <button id="go" disabled>Procurando o Cast…</button>
+    <div id="st"></div>
+    <label for="url">Endereço do PlanKnect para o Hub</label>
+    <input id="url" value="https://mmbussacarini.github.io/PlanKnect/app/nest-hub.html">
+  </div>
+
+  <div class="card">
+    <h1>Como usar</h1>
+    <ol>
+      <li>Abra esta página no <b>Chrome</b> (celular Android ou computador) na rede de casa.</li>
+      <li>Toque em <b>Mostrar no Nest Hub</b> e escolha o Hub (ex.: “Kitchen Display”).</li>
+      <li>Na primeira vez, o Hub mostra um <b>QR</b>: aponte o celular e aprove em planknect.com.</li>
+      <li>Para tirar o PlanKnect da tela: diga “Ok Google, parar” ou deslize para baixo no Hub.</li>
+    </ol>
+    <p style="margin-top:12px">iPhone não tem o Cast no navegador. Use um computador com Chrome, ou deixe o <a href="https://github.com/mmbussacarini/PlanKnect/tree/main/google-nest#manter-sempre-ligado">Mac mantendo o Hub sempre no PlanKnect</a>.</p>
+  </div>
+
+  <div class="card">
+    <h1>Ver aqui</h1>
+    <p>Pré-visualização da versão do Hub neste navegador.</p>
+    <button class="ghost" onclick="location.href=document.getElementById('url').value">Abrir a versão do Hub</button>
+  </div>
+</main>
+
+<script>
+  // Receptor DashCast (público): mostra uma página web no Chromecast/Nest Hub.
+  var APP_ID = '84912283', NS = 'urn:x-cast:es.offd.dashcast';
+  var go = document.getElementById('go'), st = document.getElementById('st');
+  function say(t, cls) { st.textContent = t; st.className = cls || ''; }
+  window.__onGCastApiAvailable = function (ok) {
+    if (!ok) { go.textContent = 'Cast indisponível neste navegador'; say('Abra no Chrome (Android, Mac ou Windows).', 'err'); return; }
+    cast.framework.CastContext.getInstance().setOptions({ receiverApplicationId: APP_ID, autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
+    go.disabled = false; go.textContent = 'Mostrar no Nest Hub';
+  };
+  go.onclick = function () {
+    var url = document.getElementById('url').value.trim();
+    say('Escolha o Nest Hub na lista…');
+    cast.framework.CastContext.getInstance().requestSession().then(function () {
+      var s = cast.framework.CastContext.getInstance().getCurrentSession();
+      return s.sendMessage(NS, { url: url, force: true, reload: false, reload_time: 0 });
+    }).then(function () { say('Pronto! O PlanKnect está abrindo no Hub.', 'ok'); })
+      .catch(function (e) { say(e === 'cancel' || (e && e.code === 'cancel') ? 'Cancelado.' : 'Não consegui: ' + (e && (e.description || e.code || e)), 'err'); });
+  };
+  setTimeout(function () { if (go.disabled) { go.textContent = 'Cast indisponível neste navegador'; say('Abra esta página no Chrome. No iPhone, use um computador.', 'err'); } }, 6000);
+</script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+</body>
+</html>

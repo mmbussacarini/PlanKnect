@@ -1,0 +1,178 @@
+/* Alfred — TV (1920×1080) e nest-hub (.compact, 1024×600). Sem flex-gap (Chromium 68). */
+.kn { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 33; display: none; overflow: hidden;
+  background: radial-gradient(1400px 900px at 22% 45%, #1b1647 0%, #0a0c24 55%, #04050f 100%); }
+.kn.on { display: block; animation: alIn .5s ease-out; }
+@keyframes alIn { from { opacity: 0; } to { opacity: 1; } }
+.al-aura { position: absolute; top: -20%; left: -20%; right: -20%; bottom: -20%; pointer-events: none;
+  background: radial-gradient(600px 600px at 25% 40%, rgba(124, 92, 255, .28), transparent 70%), radial-gradient(700px 500px at 80% 75%, rgba(34, 211, 238, .12), transparent 70%), radial-gradient(500px 400px at 70% 15%, rgba(240, 171, 252, .10), transparent 70%);
+  animation: alDrift 18s ease-in-out infinite alternate; }
+@keyframes alDrift { to { transform: translate(4%, -3%) scale(1.06); } }
+
+.al-wrap { position: relative; display: flex; height: 100%; padding: 80px 100px 64px; box-sizing: border-box; }
+.al-left { width: 640px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding-right: 70px; border-right: 1px solid rgba(255, 255, 255, .07); }
+.al-right { flex: 1; min-width: 0; padding-left: 70px; display: flex; flex-direction: column; }
+
+/* orbe */
+.al-orb { position: relative; width: 250px; height: 250px; margin-top: 10px; flex-shrink: 0; }
+.al-orb b { position: absolute; top: 25px; left: 25px; right: 25px; bottom: 25px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff 0%, #c7d2fe 10%, #818cf8 30%, #6d28d9 62%, #1e1b4b 100%);
+  box-shadow: 0 0 80px rgba(129, 140, 248, .75), 0 0 160px rgba(124, 58, 237, .35), inset 0 -16px 40px rgba(0, 0, 0, .4); animation: alBreath 5s ease-in-out infinite; }
+.al-orb span { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; border: 2px solid rgba(167, 139, 250, .35); }
+.al-orb .r1 { animation: alSpin 14s linear infinite; border-color: rgba(167, 139, 250, .45) transparent rgba(34, 211, 238, .35) transparent; }
+.al-orb .r2 { top: 12px; left: 12px; right: 12px; bottom: 12px; animation: alSpin 9s linear infinite reverse; border-color: transparent rgba(240, 171, 252, .4) transparent rgba(129, 140, 248, .4); }
+.al-orb .r3 { top: -14px; left: -14px; right: -14px; bottom: -14px; border-width: 1px; opacity: .5; }
+@keyframes alBreath { 50% { transform: scale(1.04); box-shadow: 0 0 110px rgba(129, 140, 248, .9), 0 0 200px rgba(124, 58, 237, .45), inset 0 -16px 40px rgba(0, 0, 0, .4); } }
+@keyframes alSpin { to { transform: rotate(360deg); } }
+@keyframes alPulse { 0% { transform: scale(.95); opacity: .9; } 100% { transform: scale(1.45); opacity: 0; } }
+.kn[data-st="listen"] .al-orb b { background: radial-gradient(circle at 34% 28%, #fff 0%, #a5f3fc 12%, #22d3ee 34%, #0e7490 70%, #082f49 100%); box-shadow: 0 0 100px rgba(34, 211, 238, .8), inset 0 -16px 40px rgba(0, 0, 0, .4); }
+.kn[data-st="listen"] .al-orb .r3, .kn[data-st="talk"] .al-orb .r3 { animation: alPulse 1.4s ease-out infinite; opacity: 1; border-width: 3px; }
+.kn[data-st="think"] .al-orb b { animation: alSpin 2.2s linear infinite; background: conic-gradient(from 0deg, #818cf8, #c084fc, #22d3ee, #818cf8); }
+.kn[data-st="talk"] .al-orb b { animation: alTalk .45s ease-in-out infinite alternate; }
+@keyframes alTalk { from { transform: scale(.97); } to { transform: scale(1.07); } }
+
+/* ondas de voz */
+.al-wave { display: flex; align-items: center; justify-content: center; height: 70px; margin: 26px 0 8px; }
+.al-wave i { display: block; width: 7px; height: 64px; margin: 0 4px; border-radius: 4px; background: linear-gradient(#a5b4fc, #7c5cff); transform: scaleY(.12); transition: transform .1s linear; opacity: .9; }
+.kn[data-st="listen"] .al-wave i { background: linear-gradient(#a5f3fc, #22d3ee); }
+.kn[data-st="talk"] .al-wave i { animation: alBar .9s ease-in-out infinite; }
+.kn[data-st="talk"] .al-wave i:nth-child(3n) { animation-delay: -.3s; } .kn[data-st="talk"] .al-wave i:nth-child(3n+1) { animation-delay: -.6s; }
+@keyframes alBar { 0%, 100% { transform: scaleY(.15); } 50% { transform: scaleY(.75); } }
+
+.al-name { font-family: Georgia, 'Times New Roman', serif; font-size: 76px; font-weight: 400; letter-spacing: 2px; line-height: 1; color: #eef0ff; text-shadow: 0 0 40px rgba(165, 180, 252, .45); }
+.al-status { margin-top: 12px; font-size: 22px; letter-spacing: 4px; text-transform: uppercase; color: #a5b4fc; min-height: 28px; }
+.kn[data-st="listen"] .al-status { color: #67e8f9; }
+.al-heard { margin-top: 26px; font-size: 26px; color: #c7d2fe; font-style: italic; min-height: 34px; max-width: 560px; }
+.al-reply { margin-top: 12px; font-family: Georgia, 'Times New Roman', serif; font-size: 32px; line-height: 1.3; color: #fff; max-width: 580px; max-height: 170px; overflow: hidden; opacity: 0; transform: translateY(10px); transition: all .35s; }
+.al-reply.show { opacity: 1; transform: none; }
+.al-reply.err { color: #fca5a5; font-size: 24px; font-family: inherit; }
+
+.al-ask { display: flex; align-items: center; width: 100%; margin-top: auto; }
+.al-mic { flex-shrink: 0; display: inline-flex; align-items: center; height: 72px; padding: 0 28px 0 22px; border-radius: 36px; font-size: 24px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, #6366f1, #7c3aed); box-shadow: 0 10px 30px rgba(124, 58, 237, .45); }
+.al-mic .ic { margin-right: 10px; }
+.kn[data-st="listen"] .al-mic { background: linear-gradient(135deg, #06b6d4, #0e7490); box-shadow: 0 0 40px rgba(34, 211, 238, .6); }
+.al-in { flex: 1; min-width: 0; height: 72px; margin: 0 12px; padding: 0 22px; border-radius: 36px; font-size: 22px; color: #fff; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); outline: 0; }
+.al-send { flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #c7d2fe; background: rgba(255, 255, 255, .08); }
+.al-phone { display: flex; align-items: center; width: 100%; margin-top: 22px; text-align: left; }
+.al-qr { width: 112px; height: 112px; padding: 8px; background: #fff; border-radius: 14px; flex-shrink: 0; margin-right: 18px; }
+.al-qr img, .al-qr canvas { display: block; width: 112px !important; height: 112px !important; }
+.al-phone b { display: block; font-size: 22px; color: #e0e7ff; } .al-phone span { font-size: 18px; color: #94a3c8; }
+
+/* lado direito */
+.al-load { font-size: 26px; color: #c7d2fe; padding: 60px 0; display: flex; align-items: center; }
+.al-load .spin { margin-right: 16px; }
+.al-body { flex: 1; min-height: 0; overflow: hidden; }
+.al-h { font-family: Georgia, 'Times New Roman', serif; font-size: 48px; color: #fff; margin-bottom: 22px; }
+.al-brief { display: flex; flex-wrap: wrap; margin: 0 -8px 18px; }
+.al-l { width: calc(50% - 16px); margin: 0 8px 14px; box-sizing: border-box; display: flex; align-items: flex-start; padding: 18px 20px; border-radius: 22px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07); }
+.al-l > .ic { color: #a5b4fc; margin-right: 16px; flex-shrink: 0; }
+.al-l b { display: block; font-size: 24px; font-weight: 600; color: #eef0ff; }
+.al-l span { display: block; margin-top: 4px; font-size: 19px; color: #9aa8d1; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.al-h2 { font-size: 18px; letter-spacing: 4px; text-transform: uppercase; color: #8b9ad0; font-weight: 700; margin: 6px 0 14px; }
+.al-sug { display: flex; flex-wrap: wrap; margin: 0 -8px; }
+.al-c { width: calc(33.333% - 16px); margin: 0 8px 14px; box-sizing: border-box; display: flex; flex-direction: column; padding: 20px; border-radius: 24px; background: rgba(124, 92, 255, .10); border: 1px solid rgba(167, 139, 250, .25); }
+.al-c.warn { background: rgba(251, 191, 36, .08); border-color: rgba(251, 191, 36, .4); }
+.al-ct { display: flex; align-items: flex-start; flex: 1; }
+.al-ct > .ic { color: #c4b5fd; margin-right: 14px; flex-shrink: 0; }
+.al-c.warn .al-ct > .ic { color: #fcd34d; }
+.al-ct b { display: block; font-size: 22px; color: #fff; } .al-ct span { display: block; margin-top: 4px; font-size: 18px; color: #c7d2fe; line-height: 1.3; }
+.al-cb { display: flex; margin-top: 16px; }
+.al-yes, .al-no { font-size: 19px; font-weight: 700; padding: 12px 18px; border-radius: 16px; white-space: nowrap; }
+.al-yes { background: #7c5cff; color: #fff; margin-right: 10px; }
+.al-no { background: rgba(255, 255, 255, .08); color: #c7d2fe; }
+.al-try { margin-top: 10px; }
+.al-chips { display: flex; flex-wrap: wrap; }
+.al-chip { font-size: 20px; color: #dbe3ff; padding: 12px 20px; border-radius: 26px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); margin: 0 12px 12px 0; }
+.al-x { position: absolute; top: 40px; right: 48px; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #c7d2fe; background: rgba(255, 255, 255, .07); }
+.kn .focused { box-shadow: 0 0 0 4px #fff, 0 0 30px rgba(165, 180, 252, .6); }
+
+/* botão do topo */
+.kn-btn { display: inline-flex; align-items: center; height: 60px; padding: 0 22px 0 10px; border-radius: 30px; margin-right: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(99, 102, 241, .35), rgba(124, 58, 237, .35)); border: 1px solid rgba(167, 139, 250, .45); color: #fff; font-size: 22px; font-weight: 700; }
+.kn-btn .kn-mini { width: 40px; height: 40px; margin-right: 10px; }
+.kn-btn .kn-lbl { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 26px; letter-spacing: .5px; }
+.hb-kn { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; width: 40px; height: 40px; margin-right: 10px; }
+.kn-mini { position: relative; display: block; width: 72%; height: 72%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e0e7ff 0%, #818cf8 25%, #7c3aed 60%, #1e1b4b 100%); box-shadow: 0 0 18px rgba(129, 140, 248, .8); animation: alBreath 5s ease-in-out infinite; }
+
+/* nest-hub */
+.kn.compact .al-wrap { padding: 26px 30px 20px; }
+.kn.compact .al-left { width: 300px; padding-right: 26px; }
+.kn.compact .al-right { padding-left: 26px; }
+.kn.compact .al-orb { width: 130px; height: 130px; margin-top: 4px; }
+.kn.compact .al-orb b { top: 14px; left: 14px; right: 14px; bottom: 14px; }
+.kn.compact .al-wave { height: 34px; margin: 12px 0 4px; } .kn.compact .al-wave i { width: 4px; height: 30px; margin: 0 2px; }
+.kn.compact .al-name { font-size: 40px; } .kn.compact .al-status { font-size: 12px; letter-spacing: 3px; margin-top: 6px; min-height: 16px; }
+.kn.compact .al-heard { font-size: 15px; margin-top: 12px; min-height: 18px; }
+.kn.compact .al-reply { font-size: 18px; max-height: 120px; }
+.kn.compact .al-mic { height: 46px; font-size: 16px; padding: 0 18px 0 14px; margin: 0 auto; }
+.kn.compact .al-h { font-size: 26px; margin-bottom: 10px; }
+.kn.compact .al-l { padding: 9px 11px; border-radius: 14px; margin-bottom: 8px; } .kn.compact .al-l > .ic { margin-right: 9px; }
+.kn.compact .al-l b { font-size: 15px; } .kn.compact .al-l span { font-size: 12px; }
+.kn.compact .al-h2 { font-size: 11px; margin: 2px 0 8px; letter-spacing: 3px; }
+.kn.compact .al-c { width: calc(50% - 16px); padding: 10px 12px; border-radius: 16px; margin-bottom: 8px; }
+.kn.compact .al-ct b { font-size: 14px; } .kn.compact .al-ct span { font-size: 12px; }
+.kn.compact .al-cb { margin-top: 8px; } .kn.compact .al-yes, .kn.compact .al-no { font-size: 13px; padding: 7px 11px; border-radius: 11px; }
+.kn.compact .al-chip { font-size: 13px; padding: 7px 12px; margin: 0 7px 7px 0; }
+.kn.compact .al-x { top: 14px; right: 16px; width: 42px; height: 42px; }
+.kn.compact .al-load { font-size: 17px; padding: 30px 0; }
+
+/* orbe de partículas (canvas) — substitui o orbe CSS quando o aparelho suporta */
+.al-cv { display: none; }
+.kn.has-cv .al-orb { width: 330px; height: 330px; margin-top: -20px; }
+.kn.has-cv .al-cv { display: block; width: 100%; height: 100%; }
+.kn.has-cv .al-orb > span, .kn.has-cv .al-orb > b { display: none; }
+.kn.has-cv .al-wave { margin-top: 0; }
+.kn.compact.has-cv .al-orb { width: 160px; height: 160px; margin-top: -8px; }
+
+/* histórico da conversa */
+.al-log { width: 100%; max-width: 580px; margin-top: 14px; }
+.al-log div { opacity: .45; font-size: 18px; color: #c7d2fe; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-log i { margin-right: 8px; } .al-log span { color: #fff; }
+.al-log div:last-child { opacity: .65; }
+.al-log + .al-heard { margin-top: 8px; }
+
+/* precisa de você */
+.al-need { margin: -6px 0 18px; padding: 14px 18px; border-radius: 22px; background: rgba(239, 68, 68, .12); border: 1px solid rgba(248, 113, 113, .45); }
+.al-need-h { display: flex; align-items: center; font-size: 16px; letter-spacing: 3px; text-transform: uppercase; font-weight: 800; color: #fca5a5; margin-bottom: 8px; }
+.al-need-h i { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; margin-right: 10px; box-shadow: 0 0 12px #ef4444; animation: alBlink 1.4s ease-in-out infinite; }
+@keyframes alBlink { 50% { opacity: .3; } }
+.al-need-i { display: flex; align-items: center; padding: 6px 0; }
+.al-need-i > .ic { color: #fca5a5; margin-right: 14px; flex-shrink: 0; }
+.al-need-i > div { flex: 1; min-width: 0; }
+.al-need-i b { display: block; font-size: 22px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .al-need-i span { font-size: 17px; color: #fecaca; }
+.al-go { flex-shrink: 0; margin-left: 14px; font-size: 18px; font-weight: 700; padding: 10px 18px; border-radius: 14px; background: rgba(239, 68, 68, .85); color: #fff; }
+
+/* memória */
+.al-mem { margin-top: 4px; }
+.al-memo { display: inline-flex; align-items: center; max-width: 420px; font-size: 18px; color: #e9d5ff; padding: 10px 16px; border-radius: 16px; background: rgba(168, 85, 247, .12); border: 1px solid rgba(192, 132, 252, .3); margin: 0 10px 10px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-memo .ic { margin-right: 8px; flex-shrink: 0; color: #d8b4fe; }
+
+.kn.compact .al-log div { font-size: 12px; } .kn.compact .al-need { padding: 8px 10px; border-radius: 14px; margin-bottom: 10px; }
+.kn.compact .al-need-h { font-size: 10px; margin-bottom: 4px; } .kn.compact .al-need-i b { font-size: 14px; } .kn.compact .al-need-i span { font-size: 11px; }
+.kn.compact .al-go { font-size: 12px; padding: 6px 10px; } .kn.compact .al-memo { font-size: 12px; padding: 6px 10px; max-width: 260px; }
+.kn.has-cv .al-orb { width: 380px; height: 380px; margin-top: -40px; }
+.al-brief { margin-bottom: 8px; }
+.al-l { padding: 14px 18px; margin-bottom: 12px; }
+.al-mem { flex-shrink: 0; }
+.al-try { flex-shrink: 0; }
+.al-c { padding: 16px 18px; } .al-cb { margin-top: 12px; }
+
+/* propostas do Alfred: confirmar antes de gravar */
+.al-props { width: 100%; max-width: 600px; margin-top: 14px; }
+.al-prop { display: flex; align-items: center; text-align: left; padding: 12px 14px; margin-bottom: 10px; border-radius: 20px; background: rgba(34, 197, 94, .1); border: 1px solid rgba(74, 222, 128, .4); }
+.al-prop > .ic { color: #86efac; margin-right: 12px; flex-shrink: 0; }
+.al-prop > span { flex: 1; min-width: 0; font-size: 21px; color: #fff; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.al-ok, .al-cancel { flex-shrink: 0; margin-left: 10px; font-size: 18px; font-weight: 700; padding: 10px 16px; border-radius: 14px; }
+.al-ok { background: #22c55e; color: #052e16; } .al-cancel { background: rgba(255, 255, 255, .08); color: #c7d2fe; }
+.al-prop.busy { opacity: .5; }
+.kn.compact .al-prop { padding: 7px 9px; border-radius: 14px; } .kn.compact .al-prop > span { font-size: 13px; }
+.kn.compact .al-ok, .kn.compact .al-cancel { font-size: 12px; padding: 6px 10px; margin-left: 6px; }
+/* QR inteiro: a área branca (padding) fica fora dos 112/150px do código */
+.al-qr, .rm-qr { box-sizing: content-box; overflow: hidden; }
+.al-qr { width: 112px; height: 112px; }
+/* fundo do Alfred: cena (foto/vídeo) escurecida, com o orbe e o texto por cima */
+.al-scene { position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: .55; }
+.al-scene video, .al-scene img, .al-scene > div { width: 100%; height: 100%; object-fit: cover; }
+.al-shade { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(6, 7, 22, .55) 0%, rgba(6, 7, 22, .78) 38%, rgba(6, 7, 22, .9) 100%); }
+.al-aura { opacity: .8; }
+.kn .al-l, .kn .al-c, .kn .al-chip { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }

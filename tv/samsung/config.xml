@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PlanKnect TV para Samsung Smart TV (Tizen 6.5+, linha 2022 em diante). Mesmo app web da LG. -->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="https://planknect.com/tv/samsung" version="0.1.0" viewmodes="maximized">
+  <tizen:application id="PKnectTV01.PlanKnect" package="PKnectTV01" required_version="6.0"/>
+  <name>PlanKnect</name>
+  <author href="https://planknect.com">PlanKnect</author>
+  <description>Family Hub: agenda, missões, listas, clima, modo reunião e apps.</description>
+  <icon src="largeIcon.png"/>
+  <content src="index.html"/>
+  <access origin="*" subdomains="true"/>
+  <tizen:allow-navigation>*</tizen:allow-navigation>
+  <tizen:content-security-policy>default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;</tizen:content-security-policy>
+  <feature name="http://tizen.org/feature/screen.size.all"/>
+  <!-- abrir Netflix, YouTube, Disney+, Prime, Spotify -->
+  <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+  <tizen:privilege name="http://tizen.org/privilege/appmanager.launch"/>
+  <!-- botões coloridos do controle -->
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <!-- Modo Trabalho: HDMI numa janela dentro do app -->
+  <tizen:privilege name="http://tizen.org/privilege/tv.window"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <!-- câmera e microfone USB (chamadas e voz direto na TV) — a testar -->
+  <tizen:privilege name="http://tizen.org/privilege/camera"/>
+  <tizen:privilege name="http://tizen.org/privilege/recorder"/>
+    <tizen:privilege name="http://tizen.org/privilege/microphone"/>
+  <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
+  <tizen:privilege name="http://developer.samsung.com/privilege/productinfo"/>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

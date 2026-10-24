@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Abertura: aparece na hora (antes do CSS do app) e some quando o app está pronto */
+  html, body { margin: 0; background: #040817; }
+  body:not(.pk-ready) > :not(#pk-splash):not(script) { visibility: hidden; }
+  #pk-splash { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(60vmin 60vmin at 50% 45%, #0f1f5c 0%, #040817 70%); transition: opacity .5s ease; font-family: "Google Sans", Roboto, Arial, sans-serif; }
+  #pk-splash img { width: 18vmin; height: 18vmin; animation: pk-pop 1.6s ease-in-out infinite alternate; filter: drop-shadow(0 1.5vmin 4vmin rgba(31, 123, 255, .55)); }
+  #pk-splash b { margin-top: 3.5vmin; font-size: 5.5vmin; font-weight: 800; letter-spacing: -.1vmin; background: linear-gradient(90deg, #8b7bff, #c4a7ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #pk-splash i { margin-top: 3vmin; width: 22vmin; height: .6vmin; border-radius: 1vmin; background: rgba(255, 255, 255, .1); overflow: hidden; position: relative; }
+  #pk-splash i:after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 1vmin; background: linear-gradient(90deg, #3b82f6, #a78bfa); animation: pk-bar 1.2s ease-in-out infinite; }
+  body.pk-ready #pk-splash { opacity: 0; pointer-events: none; }
+  @keyframes pk-pop { from { transform: scale(.94); } to { transform: scale(1.04); } }
+  @keyframes pk-bar { from { left: -40%; } to { left: 100%; } }
+</style>
+<title>PlanKnect TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<script>window.PK_CSS = ["css/app.css", "css/hub.css", "css/home.css", "css/extras.css", "css/jarvis.css"];</script>
+</head>
+<body>
+<div id="pk-splash"><img src="assets/logo.svg" width="100" height="100" alt=""><b>PlanKnect</b><i></i></div>
+<div id="stage">
+  <div class="bg"><i class="glow g1"></i><i class="glow g2"></i><i class="glow g3"></i></div>
+  <div id="home-bg" class="scene-host"></div>
+
+  <!-- ============ PAREAMENTO ============ -->
+  <section id="screen-pair" class="screen">
+    <div class="pair-brand"><img class="logo-img" src="assets/logo.svg" width="56" height="56" alt=""><span class="wordmark">PlanKnect</span> <span class="muted">TV</span></div>
+    <div id="pair-qr" class="pair-wrap">
+      <div class="pair-left">
+        <h1>Conecte esta TV<br>à sua família</h1>
+        <ol class="steps">
+          <li><b>1</b><span>Abra a câmera do celular e aponte para o QR</span></li>
+          <li><b>2</b><span>Entre no PlanKnect (se ainda não estiver logado)</span></li>
+          <li><b>3</b><span>Escolha a família e toque em <em>Conectar TV</em></span></li>
+        </ol>
+        <div class="or">ou acesse <span id="pair-url">planknect.com/tv</span> e digite o código</div>
+        <div id="pair-code" class="pair-code">····-····</div>
+        <div id="pair-status" class="pair-status"></div>
+        <div class="btn-row">
+          <button class="btn focusable" data-act="login" data-autofocus>Entrar com email e senha</button>
+          <button class="btn ghost focusable" data-act="demo">Modo demonstração</button>
+          <button class="btn ghost focusable" data-act="retry">Novo código</button>
+        </div>
+      </div>
+      <div class="pair-right">
+        <div class="qr-box"><div id="qr"></div></div>
+        <div id="pair-exp" class="pair-exp"></div>
+      </div>
+    </div>
+    <div id="pair-login" class="pair-wrap hidden">
+      <div class="login-card">
+        <h1>Entrar no PlanKnect</h1>
+        <p class="muted">Use o teclado da TV. Pelo QR code é mais rápido, e a senha não aparece na tela.</p>
+        <label>Email<input id="login-email" class="focusable" type="email" autocomplete="username" data-autofocus></label>
+        <label>Senha<input id="login-pass" class="focusable" type="password" autocomplete="current-password"></label>
+        <div id="login-msg" class="pair-status"></div>
+        <div class="btn-row">
+          <button class="btn focusable" data-act="do-login">Entrar</button>
+          <button class="btn ghost focusable" data-act="qr">Voltar para o QR code</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRINCIPAL ============ -->
+  <section id="screen-main" class="screen">
+    <header class="topbar">
+      <div class="brand"><img class="logo-img" src="assets/logo.svg" width="56" height="56" alt=""><span class="wordmark">PlanKnect</span><span id="household" class="household"></span><span id="mode-badge" class="badge" style="display:none">DEMO</span></div>
+      <nav class="tabs">
+        <button class="tab focusable" data-view="home"><i class="key red"></i>Início</button>
+        <button class="tab focusable" data-view="agenda"><i class="key green"></i>Agenda</button>
+        <button class="tab focusable" data-view="chores"><i class="key yellow"></i>Missões</button>
+        <button class="tab focusable" data-view="lists"><i class="key blue"></i>Listas</button>
+        <button class="tab focusable" data-view="notes"><i class="key none"></i>Recados</button>
+        <button class="tab focusable" data-view="timers"><i class="key none"></i>Timers</button>
+        <button class="tab focusable" data-view="watch"><i class="key none"></i>Assistir</button>
+        <button class="tab focusable" data-view="home-devices"><i class="key none"></i>Casa</button>
+        <button class="tab focusable" data-view="weather"><i class="key none"></i>Clima</button>
+        <button class="tab focusable" data-view="work"><i class="key none"></i>Tarefas</button>
+        <button class="tab focusable" data-view="deals"><i class="key none"></i>Deals</button>
+      </nav>
+      <div class="top-right">
+        <span id="top-clock" class="top-clock"></span>
+        <span id="sync" class="sync"></span>
+        <button class="kn-btn focusable" data-act="knect" aria-label="Alfred"><span class="kn-mini"><i></i></span><span class="kn-lbl">Alfred</span></button>
+        <button class="icon-btn focusable" data-act="meeting" data-label="Reunião" aria-label="Sala de reunião">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/></svg></button>
+        <button class="icon-btn focusable" data-act="workmode" data-label="Computador" aria-label="Computador na TV">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/></svg></button>
+        <button class="icon-btn focusable" data-act="settings" data-label="Ajustes" aria-label="Ajustes">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+      </div>
+    </header>
+    <main>
+      <div id="view-home" class="view"></div>
+      <div id="view-agenda" class="view"></div>
+      <div id="view-chores" class="view"></div>
+      <div id="view-lists" class="view"></div>
+      <div id="view-notes" class="view"></div>
+      <div id="view-timers" class="view"></div>
+      <div id="view-watch" class="view"></div>
+      <div id="view-home-devices" class="view"></div>
+      <div id="view-weather" class="view"></div>
+      <div id="view-work" class="view"></div>
+      <div id="view-deals" class="view"></div>
+    </main>
+  </section>
+
+  <!-- ============ TELA CHEIA ============ -->
+  <div id="routine" class="overlay routine"></div>
+  <div id="workmode" class="layer"></div>
+  <div id="meeting" class="layer"></div>
+  <div id="alerts"></div>
+  <div id="ambient" class="layer"></div>
+  <div id="fx"></div>
+  <div id="toast"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>window.PK_JS = ["js/config.js", "js/config.local.js", "js/core.js", "js/api.js", "js/assistant.js", "js/scenes.js", "js/content.js", "js/views.js", "js/details.js", "js/modes.js", "js/alerts.js", "js/routine.js", "js/jarvis.js", "js/deals.js", "js/workmode.js", "js/media.js", "js/tv-plus.js", "js/app.js"];</script>
+<script>
+/* Carrega CSS/JS com a versão atual (version.json) para nunca ficar preso em cache. */
+(function () {
+  var v = String(Date.now());
+  try { var x = new XMLHttpRequest(); x.open('GET', 'version.json?t=' + Date.now(), false); x.send(); v = JSON.parse(x.responseText).version || v; } catch (e) {}
+  window.PK_VERSION = v;
+  (window.PK_CSS || []).forEach(function (h) { document.write('<link rel="stylesheet" href="' + h + '?v=' + v + '">'); });
+  (window.PK_JS || []).forEach(function (s) { document.write('<script src="' + s + '?v=' + v + '"><\/script>'); });
+})();
+</script>
+</body>
+</html>
