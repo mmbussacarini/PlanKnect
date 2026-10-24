@@ -305,6 +305,13 @@
     return '<div class="set-group">Conexão</div>' +
       row(live ? 'Conectada ao PlanKnect' : 'Modo demonstração', live ? 'Desconectar' : 'Conectar', 'data-act="link" data-autofocus', 'tv', (state.household && state.household.name) || '') +
       row('Atualizar agora', state.fetchedAt ? 'última ' + U.hm(state.fetchedAt) : '—', 'data-act="refresh"', 'refresh') +
+      (live ? (function () {
+        var c = (state.settings && state.settings.content) || {}, keys = Object.keys(c);
+        if (!keys.length) return '';
+        var NAMES = { events: 'Agenda', tasks: 'Tarefas', chores: 'Missões', lists: 'Listas', notes: 'Recados', meals: 'Refeições', members: 'Membros', projects: 'Projetos', deals: 'Deals', photos: 'Fotos', cameras: 'Câmeras', meetingLive: 'Reunião ao vivo', meetingInsights: 'Insights de reunião', meetingRecordings: 'Gravações', taskWrite: 'Editar tarefas', choreWrite: 'Editar missões', listWrite: 'Editar listas', noteWrite: 'Escrever recados' };
+        return '<div class="set-group">O que esta TV pode ver e fazer</div><div class="set-perm">' + keys.map(function (k) { return '<span class="' + (c[k] ? 'on' : 'off') + '">' + (c[k] ? '✓ ' : '✕ ') + U.esc(NAMES[k] || k) + '</span>'; }).join('') +
+          '</div><div class="set-h" style="margin:6px 0 14px">Para mudar: planknect.com › Configurações › Dispositivos › esta TV (<span class="mono">' + PK.api.deviceId() + '</span>) › Conteúdo e conexões</div>';
+      })() : '') +
       '<div class="set-group">Modo reunião</div>' +
       row('Entrar sozinho nas reuniões', optLabel('meeting.auto'), 'data-set="meeting.auto"', 'video', 'Reuniões com vídeo na sua agenda') +
       row('Ao entrar, mostrar', optLabel('meeting.style'), 'data-set="meeting.style"', 'camera') +

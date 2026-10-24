@@ -92,6 +92,7 @@ PK.normalize = (function () {
       events: (b.events || []).map(event).sort(function (a, c) { return a.start - c.start; }),
       projects: projColors(b.projects || []),
       tasks: (b.tasks || []).map(task).map(function (t) { var p = (b.projects || []).filter(function (x) { return x.id === t.projectId; })[0]; if (p) { t.projectColor = p.color; t.org = t.org || p.org; t.projectStatus = p.status; } return t; }),
+      settings: b.settings || {}, capabilities: b.capabilities || {},
       chores: (b.chores || []).map(function (c) {
         var m = (b.members || []).filter(function (x) { return x.familyMemberId && x.familyMemberId === c.member; })[0];
         var st = String(c.status || '').toLowerCase();
