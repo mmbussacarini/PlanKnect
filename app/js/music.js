@@ -45,8 +45,11 @@ PK.music = (function () {
     var m = String((e && e.message) || e || '');
     if (/403|forbidden|disabled/i.test(m)) return 'Música desligada para esta tela — ative “Música (Spotify)” no PlanKnect › Dispositivos.';
     if (/404|405|not_found/i.test(m)) return 'O PlanKnect ainda não tem a rota de música (pedido enviado ao Lovable).';
+    if (/premium_required/i.test(m)) return 'O Spotify só deixa controlar à distância com conta Premium.';
+    if (/reconnect_required/i.test(m)) return 'Reconecte o Spotify no PlanKnect › Integrações (faltam permissões).';
+    if (/rate_limited|429/i.test(m)) return 'Spotify pediu uma pausa — tente em alguns segundos.';
     if (/not_connected|spotify/i.test(m)) return 'Conecte o Spotify no PlanKnect › Integrações › Spotify.';
-    if (/no_device|NO_ACTIVE_DEVICE/i.test(m)) return 'Nenhum aparelho tocando — escolha onde tocar em “Tocar em”.';
+    if (/no_device|NO_ACTIVE_DEVICE/i.test(m)) return 'Nenhum aparelho com Spotify aberto — abra o Spotify na TV ou no celular e escolha em “Tocar em”.';
     return 'Não consegui falar com o Spotify agora.';
   }
   function load() {
@@ -92,14 +95,14 @@ PK.music = (function () {
   function tile() { // prateleira da tela inicial (TV)
     start();
     var t = now && now.track;
-    var off = !t && (err || live());
-    return '<div class="sh-tile music focusable' + (off ? ' off' : '') + '" data-act="music-open"><div class="sh-k">' + I.get('music', 18) + (off ? ' Spotify · não conectado' : now && now.playing ? ' Tocando agora' : ' Música') + (now && now.demo ? ' <em class="mu-demo">DEMO</em>' : '') + '</div>' +
-      (t ? '<div class="mu-tl">' + cover(t, 58) + '<div><b id="mu-t-title">' + esc(t.title) + '</b><span>' + esc(t.artist) + '</span></div></div>' : '<div class="sh-s">' + esc(err || 'Aguardando o PlanKnect') + '</div>') + '</div>';
+    var off = !t && (!!err || !now || now.connected === false), idle = !t && !off;
+    return '<div class="sh-tile music focusable' + (off ? ' off' : '') + '" data-act="music-open"><div class="sh-k">' + I.get('music', 18) + (off ? ' Spotify · não conectado' : idle ? ' Spotify' : now && now.playing ? ' Tocando agora' : ' Música · pausado') + (now && now.demo ? ' <em class="mu-demo">DEMO</em>' : '') + '</div>' +
+      (t ? '<div class="mu-tl">' + cover(t, 58) + '<div><b id="mu-t-title">' + esc(t.title) + '</b><span>' + esc(t.artist) + '</span></div></div>' : '<div class="sh-s">' + esc(idle ? 'Nada tocando · escolha uma playlist' : (err || 'Aguardando o PlanKnect')) + '</div>') + '</div>';
   }
   function chip() { // tela inicial do Nest Hub
     start();
-    var t = now && now.track; if (!t && !err) return '';
-    return '<button class="chip mu-chip" data-mu="open">' + (t ? cover(t, 26) + ' ' + esc(t.title) + (now.playing ? '' : ' (pausado)') : I.get('music', 22) + ' Spotify não conectado') + '</button>';
+    var t = now && now.track; if (!t && !err && !(now && now.connected)) return '';
+    return '<button class="chip mu-chip" data-mu="open">' + (t ? cover(t, 26) + ' ' + esc(t.title) + (now.playing ? '' : ' (pausado)') : I.get('music', 22) + (now && now.connected && !err ? ' Spotify' : ' Spotify não conectado')) + '</button>';
   }
   function player(compact) {
     start();
@@ -117,7 +120,9 @@ PK.music = (function () {
       else body = '<div class="mu-devs">' + devs.map(function (d, i) {
         var on = now && now.device && now.device.id === d.id;
         return '<button class="mu-dev focusable' + (on ? ' on' : '') + '" data-mu="transfer:' + esc(d.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + I.get(/tv/i.test(d.type) ? 'tv' : /comp/i.test(d.type) ? 'monitor' : 'speaker', 26) + '<b>' + esc(d.name) + '</b>' + (on ? '<span>tocando aqui</span>' : '') + '</button>'; }).join('') +
-        (devs.length ? '' : '<div class="mu-wait">Nenhum aparelho com Spotify aberto. Abra o Spotify na TV ou no celular.</div>') + '</div>';
+        (devs.length ? '' : '<div class="mu-wait">Nenhum aparelho com Spotify aberto agora. Abra o Spotify na TV, no celular ou no computador — ele aparece aqui.</div>') +
+        (PK.tv && (PK.tv.isTizen || PK.tv.isWebOS) ? '<button class="mu-dev focusable" data-mu="openapp">' + I.get('tv', 26) + '<b>Abrir o Spotify desta TV</b></button>' : '') +
+        '<button class="mu-dev focusable" data-mu="pane:devs">' + I.get('refresh', 26) + '<b>Procurar de novo</b></button></div>';
     } else {
       body = t ? '<div class="mu-now">' + cover(t, big) + '<div class="mu-info"><div class="mu-ctx">' + esc((now.context && now.context.name) || '') + '</div><b class="mu-title">' + esc(t.title) + '</b><span class="mu-artist">' + esc(t.artist) + (t.album ? ' · ' + esc(t.album) : '') + '</span>' +
           '<div class="mu-prog"><i style="width:' + (100 * progress() / (t.duration_ms || 1)) + '%"></i></div><div class="mu-times"><span id="mu-pos">' + mmss(progress()) + '</span><span>' + mmss(t.duration_ms) + '</span></div>' +
@@ -149,9 +154,13 @@ PK.music = (function () {
   function cmd(arg) {
     var k = String(arg).split(':')[0], v = String(arg).slice(k.length + 1);
     if (k === 'retry') { return load().then(rerender); }
+    if (k === 'openapp') { // abre o app oficial; ao voltar, a TV já aparece em "Tocar em"
+      var sp = (PK.config.apps || []).filter(function (x) { return x.samsungStyle === 'spotify' || /spotify/i.test(x.id); })[0];
+      PK.tv.launch(PK.tv.isTizen ? (sp && sp.samsung) || '3201606009684' : 'spotify-beehive', 'Spotify'); devs = null; return;
+    }
     if (k === 'pane') { pane = v; if (v === 'lists') lists = lists; if (v === 'devs') devs = null; rerender(); return; }
     if (k === 'vol') { var cur = (now && now.device && now.device.volume) || 50; return control('volume', Math.max(0, Math.min(100, cur + (+v)))); }
-    if (k === 'playlist') { pane = 'now'; return control('playlist', v).then(rerender, rerender); }
+    if (k === 'playlist') { pane = 'now'; return control('playlist', v).then(rerender, function () { if (/aparelho/.test(err)) { pane = 'devs'; devs = null; } rerender(); }); }
     if (k === 'transfer') { pane = 'now'; return control('transfer', v).then(rerender, rerender); }
     return control(k);
   }
