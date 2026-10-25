@@ -82,6 +82,11 @@ PK.normalize = (function () {
     return out;
   }
   function bundle(b) {
+    // guarda o fuso da família; se mudou e o aparelho está em outro fuso, recarrega para aplicar (core.js)
+    try {
+      var tz = b.household && b.household.timezone, old = localStorage.getItem('pk.hhTz');
+      if (tz && tz !== old) { localStorage.setItem('pk.hhTz', tz); if (window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone !== tz && !/[?&]noauto=1/.test(location.search)) setTimeout(function () { location.reload(); }, 300); }
+    } catch (e) {}
     b = dedupe(b);
     var out = personal(b, bundle0(b)), today = localKey(new Date());
     // mesmo compromisso para várias pessoas (ex.: "Swimming class" do Wesley e da Lara) → um só, com todos

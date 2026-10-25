@@ -3,6 +3,35 @@
 var PK = window.PK || {};
 window.PK = PK;
 
+/* Fuso da família: se o aparelho estiver em outro fuso (ex.: Chromecast/TV em UTC), todas as datas passam a
+ * representar o "relógio de parede" da família (Australia/Sydney). Só age quando os fusos diferem. */
+(function () {
+  try {
+    var tz = localStorage.getItem('pk.hhTz'), RD = Date;
+    if (!tz || !window.Intl) return;
+    var dev = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var fmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    var offMin = function (ms) {
+      var p = {}; fmt.formatToParts(new RD(ms)).forEach(function (x) { p[x.type] = x.value; });
+      return Math.round((RD.UTC(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second) - ms) / 60000);
+    };
+    var shift = function (ms) { return ms + (offMin(ms) + new RD(ms).getTimezoneOffset()) * 60000; };
+    var d0 = offMin(RD.now()) + new RD().getTimezoneOffset();
+    PK.tzInfo = { device: dev, household: tz, shiftMin: d0 };
+    if (!d0) return;
+    var PD = function (a, b, c, d, e, f, g) {
+      var n = arguments.length;
+      if (!(this instanceof PD)) return new RD(shift(RD.now())).toString();
+      if (n === 0) return new RD(shift(RD.now()));
+      if (n === 1 && typeof a === 'string' && /T\d\d:\d\d/.test(a) && /(Z|[+-]\d\d:?\d\d)$/.test(a)) return new RD(shift(RD.parse(a)));
+      if (n === 1) return new RD(a);
+      return new RD(a, b, c === undefined ? 1 : c, d || 0, e || 0, f || 0, g || 0);
+    };
+    PD.prototype = RD.prototype; PD.now = function () { return shift(RD.now()); }; PD.parse = RD.parse; PD.UTC = RD.UTC;
+    window.Date = PD;
+  } catch (e) {}
+})();
+
 /* ---------------- util ---------------- */
 PK.face = function (m) { return m && m.photo ? 'background:' + (m.color || '#334155') + ' url(\'' + String(m.photo).replace(/['"\\]/g, '') + '\') center/cover;' : ''; }; // foto do membro (quando o PlanKnect mandar)
 // quem participa de um compromisso: fotos (ou inicial na cor da pessoa), "+N", ou selo Família quando é de todos

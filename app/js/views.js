@@ -365,6 +365,7 @@ PK.views = (function () {
             (sc.reward ? '<div class="jar-rw">' + I.get('gift', 22) + ' ' + (stars >= goal ? 'Ganhou: ' : 'Faltam ' + (goal - stars) + ' para ') + '<b>' + esc(sc.reward) + '</b></div>' : '') +
             '<div class="jar-days">' + sc.days.map(function (v, i) { return '<i class="' + (v ? 'on' : '') + (i === (sc.monday ? (new Date().getDay() + 6) % 7 : new Date().getDay()) ? ' today' : '') + '" title="' + v + '"></i>'; }).join('') + '</div></div></div>' +
           (allDone ? '<div class="kid-party">' + I.get('sparkle', 40) + '<div>Arrasou, ' + esc(k.name) + '!<small>Todas as missões feitas</small></div></div>' : '') +
+          (function () { var pp = mine.filter(function (c) { return c.pending && !c.done; }); return pp.length ? '<div class="kid-pend">' + I.get('clock', 18) + ' ' + pp.length + ' enviada' + (pp.length > 1 ? 's' : '') + ' · +' + pp.reduce(function (s, c) { return s + (+c.points || 0); }, 0) + '★ entram quando um adulto aprovar no PlanKnect</div>' : ''; })() +
           '<div class="mission-grid">' + mine.map(function (c, i) {
             return '<div class="mission focusable' + (c.done ? ' done' : '') + (c.pending && !c.done ? ' pending' : '') + (c.period === period && !c.done ? ' now' : '') + '" data-chore="' + esc(c.id) + '"' + (ki === 0 && i === 0 ? ' data-autofocus' : '') + '>' +
               '<span class="ms-ic">' + I.get(c.icon, 40) + '</span><div class="ms-t">' + esc(c.title) + '</div>' +

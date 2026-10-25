@@ -262,9 +262,9 @@
         (k.reward ? '<i class="rw"><i style="width:' + pct + '%"></i></i>' : '') + '</div>';
     }).join('') + '<button class="hk-new" data-act="mission-new">' + I.get('plus', 20) + ' Nova missão</button></div>';
     return board + '<div class="hb-kids" style="grid-template-columns:repeat(' + kids.length + ',1fr)">' + kids.map(function (k) {
-      var mine = state.chores.filter(function (c) { return c.member === k.id; }), dn = mine.filter(function (c) { return c.done; }).length;
-      return '<div class="hk" style="--k:' + k.color + '"><div class="hk-h">' + av(k, 40) + '<b>' + esc(first(k)) + '</b><span>' + dn + '/' + mine.length + '</span></div>' +
-        (mine.length ? mine.map(function (c) { return '<button class="hk-c' + (c.done ? ' done' : '') + '" data-chore="' + esc(c.id) + '"><span class="ic">' + I.get(c.icon, 22) + '</span>' + esc(c.title) + '</button>'; }).join('') : '<div class="hb-empty">Sem missões</div>') + '</div>';
+      var mine = state.chores.filter(function (c) { return c.member === k.id; }), dn = mine.filter(function (c) { return c.done; }).length, pend = mine.filter(function (c) { return c.pending && !c.done; }).length;
+      return '<div class="hk" style="--k:' + k.color + '"><div class="hk-h">' + av(k, 40) + '<b>' + esc(first(k)) + '</b><span>' + dn + '/' + mine.length + (pend ? ' · ⏳' + pend : '') + '</span></div>' +
+        (mine.length ? mine.map(function (c) { var p = c.pending && !c.done; return '<button class="hk-c' + (c.done ? ' done' : '') + (p ? ' pending' : '') + '" data-chore="' + esc(c.id) + '"><span class="ic">' + I.get(p ? 'clock' : c.icon, 22) + '</span><span class="hk-t">' + esc(c.title) + (p ? '<small>aguardando um adulto aprovar' + (c.points ? ' · +' + c.points + '★' : '') + '</small>' : c.done && c.points ? '<small>+' + c.points + '★</small>' : '') + '</span></button>'; }).join('') : '<div class="hb-empty">Sem missões</div>') + '</div>';
     }).join('') + '</div>';
   }
 
@@ -579,7 +579,7 @@
       '<div class="st-r"><span>Na moldura, mostrar clima</span><div class="seg">' + opt('weather', true, 'Sim') + opt('weather', false, 'Não') + '</div></div>' +
       '<div class="st-r"><span>Na moldura, mostrar agenda</span><div class="seg">' + opt('agenda', true, 'Sim') + opt('agenda', false, 'Não') + '</div></div>' +
       '<div class="st-acts"><button data-act="saver-test">' + I.get('sparkle', 20) + ' Ver protetor</button><button data-act="sync">' + I.get('refresh', 20) + ' Atualizar agora</button><button data-act="sim-door">' + I.get('home', 20) + ' Testar campainha</button><button data-act="unlink">Desconectar</button></div>' +
-      '<div class="st-foot">' + (PK.data.mode() === 'live' ? 'Conectado ao PlanKnect' : 'Modo demonstração') + ' · versão ' + esc(window.PK_VERSION || '') + '</div>');
+      '<div class="st-foot">' + (PK.data.mode() === 'live' ? 'Conectado ao PlanKnect' : 'Modo demonstração') + ' · versão ' + esc(window.PK_VERSION || '') + (PK.tzInfo ? ' · Fuso: ' + PK.tzInfo.household + (PK.tzInfo.shiftMin ? ' (aparelho em ' + PK.tzInfo.device + ', ajustado)' : '') : '') + '</div>');
   }
 
   /* ---------- toque ---------- */
@@ -606,7 +606,14 @@
         render(); write(PK.data.setListItem(l.id, it.id, it.done));
       }
     }
-    if (a('data-chore')) { var c = state.chores.filter(function (x) { return x.id === a('data-chore'); })[0]; if (c) { c.done = !c.done; render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); } }
+    if (a('data-chore')) {
+      var c = state.chores.filter(function (x) { return x.id === a('data-chore'); })[0];
+      if (c && PK.data.mode() === 'live') {
+        if (c.done) PK.toast('Missão já aprovada ⭐');
+        else if (c.pending) PK.toast('Já enviada — um adulto aprova no PlanKnect e os pontos entram');
+        else { c.pending = true; render(); write(PK.data.setChore(c.id, true), 'Muito bem! Enviada para aprovação ⭐ (os pontos entram quando um adulto aprovar)'); }
+      } else if (c) { c.done = !c.done; render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); }
+    }
     if (a('data-add')) write(PK.data.addListItems(state.lists[0].id, a('data-add').split('|')), 'Ingredientes na lista');
     if (a('data-qadd')) { t.disabled = true; t.classList.add('added'); write(PK.data.addListItems(a('data-l'), [a('data-qadd')]), a('data-qadd') + ' na lista'); }
     if (a('data-timer')) { addTimer(+a('data-timer'), a('data-label') ? a('data-label') + ' · ' + a('data-timer') + ' min' : null); if (tab !== 'timers') tab = 'timers'; render(); }

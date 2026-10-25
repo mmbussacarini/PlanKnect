@@ -543,3 +543,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .mu-r > div { margin-left: 10px; min-width: 0; }
 .mu-r b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mu-r span { display: block; font-size: 13px; color: rgba(255,255,255,.6); }
+
+.hk-c.pending { background: rgba(251, 191, 36, .16); box-shadow: inset 0 0 0 2px rgba(251, 191, 36, .5); }
+.hk-c.pending .ic { background: #fbbf24; }
+.hk-t { display: flex; flex-direction: column; min-width: 0; }
+.hk-t small { font-size: 12px; font-weight: 500; opacity: .75; margin-top: 2px; }

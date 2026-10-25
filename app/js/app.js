@@ -379,7 +379,7 @@
       row('Moldura: mostrar clima', optLabel('ambient.weather'), 'data-set="ambient.weather"', 'sun') +
       row('Moldura: mostrar agenda de cada pessoa', optLabel('ambient.agenda'), 'data-set="ambient.agenda"', 'users') +
       (!live ? row('Restaurar dados do demo', '↺', 'data-act="reset-demo"', 'trash') : '') +
-      '<div class="set-foot">ID da TV: <span class="mono">' + PK.api.deviceId() + '</span></div>';
+      '<div class="set-foot">ID da TV: <span class="mono">' + PK.api.deviceId() + '</span>' + (PK.tzInfo ? ' · Fuso: ' + PK.tzInfo.household + (PK.tzInfo.shiftMin ? ' (aparelho em ' + PK.tzInfo.device + ', ajustado)' : '') : '') + '</div>';
   }
   function openSettings() { openModal({ title: I.get('gear', 40) + ' Ajustes', body: settingsBody(), actions: [{ label: 'Fechar', act: 'close', ghost: true }] }, 'settings'); }
   function cycleSetting(el) {
