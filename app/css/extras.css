@@ -880,3 +880,8 @@ body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }
 .sh-tile.music.off .sh-k .ic { color: rgba(255,255,255,.5); }
 .mu-steps { text-align: left; font-size: 19px; color: rgba(255,255,255,.75); margin: 18px 0 0; padding-left: 26px; max-width: 900px; }
 .mu-steps li { margin: 6px 0; }
+.mu-rec { display: flex; flex-wrap: wrap; }
+.mu-r { display: flex; align-items: center; width: 560px; margin: 0 16px 12px 0; padding: 10px 14px; border-radius: 16px; background: rgba(255,255,255,.06); color: #fff; text-align: left; }
+.mu-r > div { margin-left: 14px; min-width: 0; }
+.mu-r b { display: block; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-r span { display: block; font-size: 16px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

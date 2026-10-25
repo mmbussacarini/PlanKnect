@@ -8,7 +8,7 @@ window.PK = PK;
 
 PK.music = (function () {
   var U = PK.util, I = PK.icons, esc = function (s) { return U.esc(s == null ? '' : String(s)); };
-  var now = null, at = 0, err = '', devs = null, lists = null, pane = 'now', subs = [], pollT = null, tickT = null, busy = false;
+  var recent = null, now = null, at = 0, err = '', devs = null, lists = null, pane = 'now', subs = [], pollT = null, tickT = null, busy = false;
 
   /* ---------- demonstração ---------- */
   var DEMO_T = [
@@ -34,6 +34,7 @@ PK.music = (function () {
     if (a === 'previous') { if (cur.progress_ms > 5000) demo.offset = 0; else { demo.i = (demo.i + DEMO_T.length - 1) % DEMO_T.length; demo.offset = 0; } }
     if (a === 'volume') demo.vol = Math.max(0, Math.min(100, v));
     if (a === 'transfer') DEMO_D.forEach(function (d, i) { if (d.id === v) demo.dev = i; });
+    if (a === 'playlist' && /^demo:t/.test(v)) { demo.i = +v.slice(6); demo.offset = 0; demo.playing = true; return Promise.resolve(demoNow()); }
     if (a === 'playlist') { var p = DEMO_P.filter(function (x) { return x.uri === v; })[0]; demo.ctx = p ? p.name : demo.ctx; demo.i = Math.floor(Math.random() * DEMO_T.length); demo.offset = 0; demo.playing = true; }
     return Promise.resolve(demoNow());
   }
@@ -74,6 +75,8 @@ PK.music = (function () {
   }
   function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function devices() { return (live() ? api('GET', '/devices').then(function (r) { return r.devices || r || []; }) : Promise.resolve(DEMO_D)).then(function (d) { devs = d; return d; }, function (e) { err = why(e); devs = []; return []; }); }
+  var DEMO_R = DEMO_T.map(function (t, i) { return { title: t.title, artist: t.artist, album: t.album, image: '', uri: 'demo:t' + i }; });
+  function recents() { return (live() ? api('GET', '/recent').then(function (r) { return r.tracks || []; }) : Promise.resolve(DEMO_R)).then(function (l) { var seen = {}; recent = l.filter(function (x) { if (seen[x.uri]) return false; seen[x.uri] = 1; return true; }); return recent; }, function (e) { err = why(e); recent = []; return []; }); }
   function playlists() { return (live() ? api('GET', '/playlists').then(function (r) { return r.playlists || r || []; }) : Promise.resolve(DEMO_P)).then(function (p) { lists = p; return p; }, function (e) { err = why(e); lists = []; return []; }); }
 
   /* ---------- polling: 5 s com o player aberto, 20 s no resto ---------- */
@@ -109,12 +112,17 @@ PK.music = (function () {
     var t = now && now.track, big = compact ? 200 : 380, ic = compact ? 30 : 40;
     var head = '<div class="mu-tabs"><button class="focusable' + (pane === 'now' ? ' on' : '') + '" data-mu="pane:now">' + I.get('music', 20) + ' Tocando</button>' +
       '<button class="focusable' + (pane === 'lists' ? ' on' : '') + '" data-mu="pane:lists">' + I.get('list', 20) + ' Playlists</button>' +
+      '<button class="focusable' + (pane === 'recent' ? ' on' : '') + '" data-mu="pane:recent">' + I.get('clock', 20) + ' Recentes</button>' +
       '<button class="focusable' + (pane === 'devs' ? ' on' : '') + '" data-mu="pane:devs">' + I.get('airplay', 20) + ' Tocar em</button></div>';
     var body = '';
     if (pane === 'lists') {
       if (!lists) { playlists().then(rerender); body = '<div class="mu-wait">Carregando playlists…</div>'; }
       else body = '<div class="mu-grid">' + lists.slice(0, compact ? 6 : 12).map(function (p, i) {
         return '<button class="mu-pl focusable" data-mu="playlist:' + esc(p.uri) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + cover(p, compact ? 64 : 96) + '<b>' + esc(p.name) + '</b><span>' + esc(p.owner || '') + '</span></button>'; }).join('') + (lists.length ? '' : '<div class="mu-wait">Nenhuma playlist.</div>') + '</div>';
+    } else if (pane === 'recent') {
+      if (!recent) { recents().then(rerender); body = '<div class="mu-wait">Carregando…</div>'; }
+      else body = '<div class="mu-rec">' + recent.slice(0, compact ? 5 : 8).map(function (r, i) {
+        return '<button class="mu-r focusable" data-mu="track:' + esc(r.uri) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + cover(r, compact ? 40 : 56) + '<div><b>' + esc(r.title) + '</b><span>' + esc(r.artist) + '</span></div></button>'; }).join('') + (recent.length ? '' : '<div class="mu-wait">Nada recente.</div>') + '</div>';
     } else if (pane === 'devs') {
       if (!devs) { devices().then(rerender); body = '<div class="mu-wait">Procurando aparelhos…</div>'; }
       else body = '<div class="mu-devs">' + devs.map(function (d, i) {
@@ -158,7 +166,8 @@ PK.music = (function () {
       var sp = (PK.config.apps || []).filter(function (x) { return x.samsungStyle === 'spotify' || /spotify/i.test(x.id); })[0];
       PK.tv.launch(PK.tv.isTizen ? (sp && sp.samsung) || '3201606009684' : 'spotify-beehive', 'Spotify'); devs = null; return;
     }
-    if (k === 'pane') { pane = v; if (v === 'lists') lists = lists; if (v === 'devs') devs = null; rerender(); return; }
+    if (k === 'track') { pane = 'now'; return control('playlist', v).then(rerender, function () { if (/aparelho/.test(err)) { pane = 'devs'; devs = null; } rerender(); }); }
+    if (k === 'pane') { pane = v; if (v === 'recent') recent = null; if (v === 'lists') lists = lists; if (v === 'devs') devs = null; rerender(); return; }
     if (k === 'vol') { var cur = (now && now.device && now.device.volume) || 50; return control('volume', Math.max(0, Math.min(100, cur + (+v)))); }
     if (k === 'playlist') { pane = 'now'; return control('playlist', v).then(rerender, function () { if (/aparelho/.test(err)) { pane = 'devs'; devs = null; } rerender(); }); }
     if (k === 'transfer') { pane = 'now'; return control('transfer', v).then(rerender, rerender); }

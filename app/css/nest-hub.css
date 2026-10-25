@@ -538,3 +538,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .mu-err { color: #fcd34d; }
 .mu-demo { font-style: normal; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: rgba(250,204,21,.2); color: #fde68a; margin-left: 4px; }
 .mu-steps { text-align: left; font-size: 15px; color: rgba(255,255,255,.75); margin: 12px 0 0; padding-left: 22px; }
+.mu-rec { display: flex; flex-direction: column; }
+.mu-r { display: flex; align-items: center; margin-bottom: 8px; padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.06); text-align: left; }
+.mu-r > div { margin-left: 10px; min-width: 0; }
+.mu-r b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-r span { display: block; font-size: 13px; color: rgba(255,255,255,.6); }
