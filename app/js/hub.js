@@ -254,11 +254,12 @@
   function chores() {
     var kids = state.members.filter(function (m) { return m.kid; });
     if (!kids.length) return '<div class="hb-empty">Nenhuma criança marcada como criança no PlanKnect.<br>Em Família, marque quem é criança para as missões aparecerem aqui.</div>';
-    var ranked = kids.slice().sort(function (a, b) { return (b.stars || 0) - (a.stars || 0); });
+    kids.forEach(function (k) { k.week = Math.max(+k.weekStars || 0, +k.stars || 0, +k.weekLocal || 0); });
+    var ranked = kids.slice().sort(function (a, b) { return b.week - a.week; });
     var medal = ['#fbbf24', '#cbd5e1', '#f59e0b'];
     var board = '<div class="hk-board"><span class="hb-l">' + I.get('star', 20) + ' PLACAR DA SEMANA</span>' + ranked.map(function (k, i) {
-      var g = (k.reward && k.reward.goal) || 50, pct = Math.min(100, Math.round((k.stars || 0) / g * 100));
-      return '<div class="hb-k" style="--k:' + k.color + '"><b class="pos" style="background:' + (medal[i] || '#64748b') + '">' + (i + 1) + '</b>' + av(k, 26) + '<span>' + esc(first(k)) + '</span><em>' + (k.stars || 0) + '★</em>' +
+      var g = (k.reward && k.reward.goal) || 50, pct = Math.min(100, Math.round(k.week / g * 100));
+      return '<div class="hb-k" style="--k:' + k.color + '"><b class="pos" style="background:' + (medal[i] || '#64748b') + '">' + (i + 1) + '</b>' + av(k, 26) + '<span>' + esc(first(k)) + '</span><em>' + k.week + '★</em>' +
         (k.reward ? '<i class="rw"><i style="width:' + pct + '%"></i></i>' : '') + '</div>';
     }).join('') + '<button class="hk-new" data-act="mission-new">' + I.get('plus', 20) + ' Nova missão</button></div>';
     return board + '<div class="hb-kids" style="grid-template-columns:repeat(' + kids.length + ',1fr)">' + kids.map(function (k) {
@@ -609,9 +610,12 @@
     if (a('data-chore')) {
       var c = state.chores.filter(function (x) { return x.id === a('data-chore'); })[0];
       if (c && PK.data.mode() === 'live') {
-        if (c.done) PK.toast('Missão já aprovada ⭐');
-        else if (c.pending) PK.toast('Já enviada — um adulto aprova no PlanKnect e os pontos entram');
-        else { c.pending = true; render(); write(PK.data.setChore(c.id, true), 'Muito bem! Enviada para aprovação ⭐ (os pontos entram quando um adulto aprovar)'); }
+        if (c.done) PK.toast('Missão de hoje já feita ⭐');
+        else {
+          c.done = true; var k = member(c.member); if (k) k.weekLocal = (k.weekLocal || 0) + (+c.points || 0); render();
+          PK.data.setChore(c.id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(load, 700); })
+            .catch(function (e) { c.done = false; if (k) k.weekLocal -= (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
+        }
       } else if (c) { c.done = !c.done; render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); }
     }
     if (a('data-add')) write(PK.data.addListItems(state.lists[0].id, a('data-add').split('|')), 'Ingredientes na lista');

@@ -250,7 +250,7 @@ PK.details = (function () {
     var go = function (url, kind) { PK.player.open(url, d ? d.title : 'Gravação', kind || r.kind || (/\.(mp3|m4a|wav|ogg)(\?|$)/i.test(url) ? 'audio' : 'video')); };
     if (u && u !== 'api') return go(u);
     PK.toast('Abrindo a gravação…');
-    PK.api.recording(id).then(function (x) { go(x.url || x.signed_url, x.kind); }).catch(function () { PK.toast('Gravação indisponível'); });
+    PK.api.recording(id).then(function (x) { var rec = x.recording || {}, url = x.url || x.signed_url || rec.url || rec.signed_url; if (!url) { PK.toast('Esta reunião não tem gravação'); return; } go(url, x.kind || rec.kind); }).catch(function () { PK.toast('Gravação indisponível'); });
   }
   return { open: open, play: play, trailer: trailer, recording: recording, last: null };
 })();

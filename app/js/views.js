@@ -309,16 +309,19 @@ PK.views = (function () {
     Object.keys(hist).forEach(function (d) { if (new Date(d + 'T00:00:00') < U.addDays(ws, -21)) delete hist[d]; });
     U.store.set('choreHist', hist);
     (state.members || []).filter(function (m) { return m.kid; }).forEach(function (k) {
-      var api = scoresApi && scoresApi[k.id], local = 0, days = [];
+      var api = scoresApi && (scoresApi[k.familyMemberId] || scoresApi[k.id]), local = 0, days = [];
       for (var i = 0; i < 7; i++) { var dk = U.addDays(ws, i).toISOString().slice(0, 10), v = (hist[dk] && hist[dk][k.id]) || 0; local += v; days.push(v); }
-      var week = api ? api.points : (k.weekStars != null ? k.weekStars : (k.stars != null ? k.stars : local));
-      out[k.id] = { monday: !!(api && api.days), week: week, days: api && api.days || days, goal: (api && api.goal) || (k.reward && k.reward.goal) || +PK.settings.get('chores.weeklyGoal') || 50, reward: (api && api.reward) || (k.reward && k.reward.title) || '' };
+      // aprovadas (servidor) ou feitas na TV, o que for maior: a estrela entra na hora
+      var week = Math.max(api ? +api.points || 0 : 0, +k.weekStars || 0, local, +k.weekLocal || 0);
+      var ad = api && api.days, off = scoresApi && scoresApi._ws ? Math.round((new Date(scoresApi._ws + 'T00:00:00') - ws) / 864e5) : 0;
+      if (ad) days = days.map(function (v, i) { return Math.max(v, +ad[i - off] || 0); });
+      out[k.id] = { monday: !!ad, week: week, days: days, goal: (api && api.goal) || (k.reward && k.reward.goal) || +PK.settings.get('chores.weeklyGoal') || 50, reward: (api && api.reward) || (k.reward && k.reward.title) || '' };
     });
     return out;
   }
   function loadScores(cb) {
     if (PK.data.mode() !== 'live' || !PK.api.choreScores) return;
-    PK.api.choreScores().then(function (r) { scoresApi = {}; (r.members || r.scores || []).forEach(function (m) { scoresApi[m.member || m.id] = m; }); if (cb) cb(); }).catch(function () { scoresApi = null; });
+    PK.api.choreScores().then(function (r) { scoresApi = { _ws: r.week_start }; (r.members || r.scores || []).forEach(function (m) { scoresApi[m.member || m.id] = m; }); if (cb) cb(); }).catch(function () { scoresApi = null; });
   }
   function jar(k, sc, size) {
     var pct = Math.max(0, Math.min(1, sc.week / (sc.goal || 1))), H = 150, W = 120, top = 30, bot = 142, fillY = bot - (bot - top - 6) * pct;

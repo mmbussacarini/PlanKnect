@@ -696,12 +696,11 @@
     var id = el.getAttribute('data-chore');
     var c = state.chores.filter(function (x) { return x.id === id; })[0]; if (!c) return;
     var live = PK.data.mode() === 'live';
-    if (live && c.pending) { PK.toast('Já enviada — aguardando um adulto aprovar no PlanKnect'); return; }
-    if (live && c.done) { PK.toast('Missão já aprovada ⭐'); return; }
-    if (live) { // envia para aprovação (não marca como feita nem dá pontos)
-      el.classList.add('pending', 'pop'); confetti(el, 24);
-      PK.data.setChore(id, true).then(function (r) { c.pending = true; PK.toast('Muito bem! Enviada para aprovação ⭐'); setTimeout(refreshData, 700); })
-        .catch(function (e) { el.classList.remove('pending'); PK.toast(PK.writeErr(e)); });
+    if (live && c.done) { PK.toast('Missão de hoje já feita ⭐'); return; }
+    if (live) { // feita na hora: estrelas contam já (sem esperar aprovação)
+      c.done = true; el.classList.add('done', 'pop'); confetti(el, 30);
+      PK.data.setChore(id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(refreshData, 700); })
+        .catch(function (e) { c.done = false; el.classList.remove('done'); PK.toast(PK.writeErr(e)); });
       return;
     }
     c.done = !c.done;

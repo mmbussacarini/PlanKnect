@@ -97,8 +97,60 @@ PK.normalize = (function () {
       e.members.forEach(function (id) { if (f.members.indexOf(id) < 0) f.members.push(id); }); (f.sameAs = f.sameAs || []).push(e.id); return false;
     });
     out.choresAll = out.chores; // todas (próximos dias também) — a agenda usa
-    out.chores = out.chores.filter(function (c) { return !c.due || String(c.due).slice(0, 10) === today; }); // missões de hoje
+    out.chores = todayChores(out.chores, today); // missões de hoje
+    out.members.forEach(function (m) { if (m.kid) m.weekLocal = weekLocal(m.id, out.chores, today); });
     return out;
+  }
+  /* ---------- missões: a ocorrência de hoje + "feita" guardada na TV ----------
+   * O PlanKnect só cria a próxima ocorrência quando um adulto aprova, então uma missão diária fica
+   * presa no dia em que foi enviada. Aqui a missão recorrente aparece todo dia em que ela vale
+   * (frequência, dias da semana, início/fim), e o que a criança fez hoje fica marcado na TV. */
+  var choreIdx = {};
+  function choreDone() { try { return JSON.parse(localStorage.getItem('pk.choreDone') || '{}') || {}; } catch (e) { return {}; } }
+  function choreSave(dm) {
+    var keys = Object.keys(dm).sort(); while (keys.length > 21) delete dm[keys.shift()];
+    try { localStorage.setItem('pk.choreDone', JSON.stringify(dm)); } catch (e) {}
+  }
+  function markChore(id, on) {
+    var dm = choreDone(), t = localKey(new Date()), d = dm[t] = dm[t] || {}, c = choreIdx[id] || {};
+    if (on) d[id] = { p: +c.points || 0, m: c.member || null }; else delete d[id];
+    choreSave(dm);
+  }
+  function hasDow(wd, dow) { return wd.indexOf(dow) >= 0 || (dow === 0 && wd.indexOf(7) >= 0); }
+  function occursOn(c, day) {
+    var f = String(c.frequency || c.recurrence || '').toLowerCase(), dow = new Date(day + 'T12:00:00').getDay();
+    var wd = (c.weekdays || c.days || []).map(Number);
+    if (c.scheduleStart && String(c.scheduleStart).slice(0, 10) > day) return false;
+    if (c.scheduleEnd && String(c.scheduleEnd).slice(0, 10) < day) return false;
+    if (/dail|diari|every.?day|todo/.test(f)) return !wd.length || hasDow(wd, dow);
+    if (/weekday|util|úteis/.test(f)) return wd.length ? hasDow(wd, dow) : dow >= 1 && dow <= 5;
+    if (/week|seman|custom/.test(f)) return wd.length ? hasDow(wd, dow) : !!c.due && new Date(String(c.due).slice(0, 10) + 'T12:00:00').getDay() === dow;
+    return false;
+  }
+  function todayChores(list, today) {
+    var mine = choreDone()[today] || {}, fresh = {};
+    list.forEach(function (c) { choreIdx[c.id] = c; if (c.due && String(c.due).slice(0, 10) === today) fresh[(c.title || '') + '|' + c.member] = 1; });
+    return list.filter(function (c) {
+      var d = c.due ? String(c.due).slice(0, 10) : null;
+      if (d && d > today) return false;
+      if (d && d < today) {
+        if (fresh[(c.title || '') + '|' + c.member]) return false; // o PlanKnect já criou a de hoje
+        if (!occursOn(c, today) && c.sent) return false;          // não vale hoje e já foi feita
+      }
+      var isToday = !d || d === today;
+      c.done = !!mine[c.id] || (isToday && (c.sent || !!c.done));
+      return true;
+    });
+  }
+  function weekLocal(memberId, todays, today) {
+    // semana de segunda a domingo, igual ao placar do PlanKnect (GET /chores/scores)
+    var now = new Date(), dm = choreDone(), ws = localKey(U.addDays(U.startOfDay(now), -((now.getDay() + 6) % 7))), sum = 0, seen = {};
+    Object.keys(dm).forEach(function (day) {
+      if (day < ws || day > today) return;
+      Object.keys(dm[day]).forEach(function (id) { var e = dm[day][id]; if (e.m === memberId) { sum += +e.p || 0; if (day === today) seen[id] = 1; } });
+    });
+    todays.forEach(function (c) { if (c.member === memberId && c.done && !seen[c.id]) sum += +c.points || 0; });
+    return sum;
   }
   function bundle0(b) {
     return {
@@ -110,9 +162,11 @@ PK.normalize = (function () {
       settings: b.settings || {}, capabilities: b.capabilities || {},
       chores: (b.chores || []).map(function (c) {
         var m = (b.members || []).filter(function (x) { return x.familyMemberId && x.familyMemberId === c.member; })[0];
-        var st = String(c.status || '').toLowerCase();
+        var st = String(c.approvalStatus || c.approval_status || c.status || '').toLowerCase();
         c.familyMemberId = c.member; if (m) c.member = m.id;
-        c.pending = !!(c.pendingApproval || c.pending_approval || /submit|pending|await|review/.test(st));
+        // enviada/aprovada = feita (na TV não existe "aguardando aprovação")
+        c.sent = !!(c.pendingApproval || c.pending_approval || /submit|pending|await|review|approv|done|complete/.test(st));
+        c.pending = false;
         if (!c.period) c.period = choreperiod(c);
         return c;
       }),
@@ -222,8 +276,17 @@ PK.api = (function () {
     deviceId: deviceId, isLinked: function () { return !!tokens(); },
     startDeviceAuth: startDeviceAuth, pollDeviceAuth: pollDeviceAuth, loginPassword: loginPassword, logout: logout,
     load: load,
-    // TV só envia para aprovação: um adulto aprova no PlanKnect (é aí que os pontos entram)
-    setChore: function (id, done) { if (!done) return Promise.reject(new Error('Só um adulto desfaz no PlanKnect')); return req('POST', '/api/tv/chores/' + enc(id), { action: 'submit' }); },
+    // a criança marca e já conta (estrelas na hora). O envio vai ao PlanKnect; se a ocorrência
+    // já tinha sido enviada num dia anterior, o servidor recusa o reenvio e a marca de hoje vale mesmo assim
+    setChore: function (id, done) {
+      if (!done) return Promise.reject(new Error('Para desfazer, use o PlanKnect'));
+      markChore(id, true);
+      return req('POST', '/api/tv/chores/' + enc(id), { action: 'submit' }).catch(function (e) {
+        var m = String(e && e.message || '');
+        if (/unauthorized|HTTP 5|fetch|network|abort|tempo|timeout|falar com/i.test(m)) { markChore(id, false); throw e; }
+        return { ok: true, local: true };
+      });
+    },
     setListItem: function (listId, itemId, done) { return req('POST', '/api/tv/lists/' + enc(listId) + '/items/' + enc(itemId), { done: done }); },
     addListItems: function (listId, titles) { return req('POST', '/api/tv/lists/' + enc(listId) + '/items', { items: titles.slice(0, 20).map(function (t) { return typeof t === 'string' ? { title: t } : t; }) }); },
     updateListItem: function (listId, itemId, patch) { return req('POST', '/api/tv/lists/' + enc(listId) + '/items/' + enc(itemId), patch); },
