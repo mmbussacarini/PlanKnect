@@ -254,7 +254,12 @@
   function chores() {
     var kids = state.members.filter(function (m) { return m.kid; });
     if (!kids.length) return '<div class="hb-empty">Nenhuma criança marcada como criança no PlanKnect.<br>Em Família, marque quem é criança para as missões aparecerem aqui.</div>';
-    kids.forEach(function (k) { k.week = Math.max(+k.weekStars || 0, +k.stars || 0, +k.weekLocal || 0); });
+    if (PK.data.mode() === 'live' && PK.api.choreScores && !chores.asked) { // placar do PlanKnect (aprovadas), por familyMemberId
+      chores.asked = true;
+      setTimeout(function () { chores.asked = false; }, 10 * 60000); // atualiza a cada 10 min
+      PK.api.choreScores().then(function (r) { var m = {}; (r.members || []).forEach(function (s) { var k = member(s.member); if (k) m[k.id] = +s.points || 0; }); chores.scores = m; render(); }).catch(function () {});
+    }
+    kids.forEach(function (k) { k.week = Math.max((chores.scores && chores.scores[k.id]) || 0, +k.weekStars || 0, +k.stars || 0, +k.weekLocal || 0); });
     var ranked = kids.slice().sort(function (a, b) { return b.week - a.week; });
     var medal = ['#fbbf24', '#cbd5e1', '#f59e0b'];
     var board = '<div class="hk-board"><span class="hb-l">' + I.get('star', 20) + ' PLACAR DA SEMANA</span>' + ranked.map(function (k, i) {
@@ -689,7 +694,7 @@
       if (a.list) listSel = a.list; render();
     },
     canInterrupt: function () { if (!$('hub-main').classList.contains('on') || recipe || $('hub-door').classList.contains('on')) return false; exitAmbient(); return true; },
-    command: function (text, o) { var mi = PK.music && PK.music.intent(text); if (mi) return mi; return PK.data.assistant(text, { state: state, view: tab, lang: o && o.lang }).then(function (r) { (r.actions || []).forEach(function (x) { if (x.type === 'music' && PK.music) PK.music.act(x); }); load(); return r; }); },
+    command: function (text, o) { var mi = PK.music && PK.music.intent(text); if (mi) return mi; return PK.data.assistant(text, { state: state, view: tab, lang: o && o.lang, onDelta: o && o.onDelta }).then(function (r) { (r.actions || []).forEach(function (x) { if (x.type === 'music' && PK.music) PK.music.act(x); }); load(); return r; }); },
     speak: function () { micSheet(); }, refresh: function () { load(); }
   });
 

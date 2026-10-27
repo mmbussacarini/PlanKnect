@@ -520,7 +520,7 @@ PK.jarvis = (function () {
     state('think');
     var pr;
     if (meetCtx && !live()) pr = PK.data.meetingInsights(meetCtx.id).then(function (r) { return { reply: 'Pelo que foi dito: ' + (r.summary || 'ainda não há falas suficientes.'), en: 'From what has been said: ' + (r.summary || 'there is not enough yet.') }; }); // demo
-    else { try { pr = opt.command(text, { lang: lang(), meeting_id: meetCtx && meetCtx.id }); } catch (err) { pr = Promise.reject(err); } }
+    else { try { pr = opt.command(text, { lang: lang(), meeting_id: meetCtx && meetCtx.id, onDelta: function (t) { box.textContent = t; box.className = 'al-reply show'; } }); } catch (err) { pr = Promise.reject(err); } }
     pr.then(function (r) { busy = false; reply(r || {}); })
       .catch(function (e) { busy = false; state('idle'); box.textContent = L('Desculpe, não consegui: ', 'I do beg your pardon — ') + ((e && e.message) || ''); box.className = 'al-reply show err'; });
   }

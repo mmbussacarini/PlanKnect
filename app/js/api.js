@@ -152,14 +152,27 @@ PK.normalize = (function () {
     todays.forEach(function (c) { if (c.member === memberId && c.done && !seen[c.id]) sum += +c.points || 0; });
     return sum;
   }
+  // o PlanKnect manda a mesma cor para todos (#3B82F6): cada pessoa ganha a sua, fixa pelo id
+  var MCOL = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee', '#f87171'];
+  function distinctColors(list) {
+    var n = {}; list.forEach(function (m) { n[m.color] = (n[m.color] || 0) + 1; });
+    list.forEach(function (m, i) { if (n[m.color] > 1) m.color = MCOL[i % MCOL.length]; });
+    return list;
+  }
+  // o que está ligado para esta tela agora vem em capabilities.content (antes era settings.content)
+  function contentStatus(s, cap) {
+    if ((!s.content || Object.keys(s.content).length < 3) && cap.content) s.content = cap.content;
+    if (!s.permissions && cap.permissions) s.permissions = cap.permissions;
+    return s;
+  }
   function bundle0(b) {
     return {
       household: familyCalendar(b),
-      members: (b.members || []).map(function (m) { if (!m.initial) m.initial = String(m.name || '?').trim().charAt(0).toUpperCase(); m.photo = m.photo || m.photoUrl || m.avatar || null; if (!m.color) m.color = '#7c5cff'; return m; }),
+      members: distinctColors((b.members || []).map(function (m) { if (!m.initial) m.initial = String(m.name || '?').trim().charAt(0).toUpperCase(); m.photo = m.photo || m.photoUrl || m.avatar || null; if (!m.color) m.color = '#7c5cff'; return m; })),
       events: (b.events || []).map(event).sort(function (a, c) { return a.start - c.start; }),
       projects: projColors(b.projects || []),
       tasks: (b.tasks || []).map(task).map(function (t) { var p = (b.projects || []).filter(function (x) { return x.id === t.projectId; })[0]; if (p) { t.projectColor = p.color; t.org = t.org || p.org; t.projectStatus = p.status; } return t; }),
-      settings: b.settings || {}, capabilities: b.capabilities || {},
+      settings: contentStatus(b.settings || {}, b.capabilities || {}), capabilities: b.capabilities || {},
       chores: (b.chores || []).map(function (c) {
         var m = (b.members || []).filter(function (x) { return x.familyMemberId && x.familyMemberId === c.member; })[0];
         var st = String(c.approvalStatus || c.approval_status || c.status || '').toLowerCase();
@@ -233,6 +246,39 @@ PK.api = (function () {
       if (r.status === 401) throw new Error('unauthorized');
       if (!r.ok) throw new Error((r.json && r.json.error) || ('HTTP ' + r.status));
       return r.json;
+    });
+  }
+
+  /* --- SSE por POST: eventos ready · delta {text} · done {reply, proposals, actions…} · error --- */
+  function stream(path, body, onDelta) {
+    var nost = function () { var e = new Error('nostream'); e.fallback = true; return e; };
+    if (!window.ReadableStream || !window.TextDecoder) return Promise.reject(nost());
+    var t = tokens(), pre = t && t.exp - Date.now() < 60000 ? refresh() : Promise.resolve();
+    return pre.then(function () {
+      var h = { 'Content-Type': 'application/json', 'X-Device-Id': deviceId(), Accept: 'text/event-stream' }, tk = tokens();
+      if (tk) h.Authorization = 'Bearer ' + tk.access;
+      return fetch(C.apiBase + path.replace(/^\/api\/tv/, ''), { method: 'POST', headers: h, body: JSON.stringify(body) });
+    }).then(function (r) {
+      if (!r.ok || !r.body || !r.body.getReader) throw nost();
+      var rd = r.body.getReader(), dec = new TextDecoder(), buf = '', acc = '', fin = null;
+      function block(b) {
+        var ev = 'message', data = '';
+        b.split('\n').forEach(function (l) { if (l.indexOf('event:') === 0) ev = l.slice(6).trim(); else if (l.indexOf('data:') === 0) data += l.slice(5).trim(); });
+        if (!data) return; var j; try { j = JSON.parse(data); } catch (e) { return; }
+        if (ev === 'delta' && j.text) { acc += j.text; try { onDelta(acc); } catch (e) {} }
+        else if (ev === 'done') fin = j;
+        else if (ev === 'error') fin = { _err: j.message || j.error || 'erro' };
+      }
+      function pump() {
+        return rd.read().then(function (x) {
+          if (!x.done) { buf += dec.decode(x.value, { stream: true }).replace(/\r/g, ''); var parts = buf.split('\n\n'); buf = parts.pop(); parts.forEach(block); }
+          else if (buf) { block(buf); buf = ''; }
+          if (fin) { try { rd.cancel(); } catch (e) {} if (fin._err) throw new Error(fin._err); if (!fin.reply) fin.reply = acc; return fin; }
+          if (x.done) throw nost();
+          return pump();
+        });
+      }
+      return pump();
     });
   }
 
@@ -355,7 +401,12 @@ PK.api = (function () {
     broadcast: function (alert) { return req('POST', '/api/tv/alerts', alert); },
     setSubtask: function (tid, sid, done) { return req('POST', '/api/tv/tasks/' + enc(tid) + '/subtasks/' + enc(sid), { done: done }); },
     // A IA do PlanKnect interpreta e executa; a TV aplica as ações de interface que voltarem
-    assistant: function (text, ctx) { return req('POST', '/api/tv/assistant', { text: text, view: ctx && ctx.view, lang: ctx && ctx.lang, meeting_id: (ctx && ctx.meeting_id) || undefined, persona: 'alfred', speak: wantAudio(), tz: tz() }); }
+    assistant: function (text, ctx) {
+      var body = { text: text, view: ctx && ctx.view, lang: ctx && ctx.lang, meeting_id: (ctx && ctx.meeting_id) || undefined, persona: 'alfred', speak: wantAudio(), tz: tz() };
+      // com onDelta: resposta em streaming (as palavras aparecem enquanto o Alfred pensa); sem suporte, volta ao normal
+      if (ctx && ctx.onDelta) return stream('/api/tv/assistant/stream', body, ctx.onDelta).catch(function (e) { if (e && e.fallback) return req('POST', '/api/tv/assistant', body); throw e; });
+      return req('POST', '/api/tv/assistant', body);
+    }
   };
 })();
 

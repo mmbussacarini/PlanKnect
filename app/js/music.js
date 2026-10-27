@@ -107,6 +107,13 @@ PK.music = (function () {
     var t = now && now.track; if (!t && !err && !(now && now.connected)) return '';
     return '<button class="chip mu-chip" data-mu="open">' + (t ? cover(t, 26) + ' ' + esc(t.title) + (now.playing ? '' : ' (pausado)') : I.get('music', 22) + (now && now.connected && !err ? ' Spotify' : ' Spotify não conectado')) + '</button>';
   }
+  var queue = null, qFor = null;
+  function upNext(t) { // GET /music/queue: as próximas faixas, embaixo do que está tocando
+    var key = t.uri || t.title;
+    if (live() && qFor !== key) { qFor = key; api('GET', '/queue').then(function (r) { queue = (r && r.queue || []).slice(0, 4); rerender(); }, function () { queue = []; }); }
+    if (!queue || !queue.length) return '';
+    return '<div class="mu-next"><span>A seguir</span>' + queue.map(function (q) { return '<em>' + esc(q.title) + (q.artist ? ' · ' + esc(q.artist) : '') + '</em>'; }).join('') + '</div>';
+  }
   function player(compact) {
     start();
     var t = now && now.track, big = compact ? 200 : 380, ic = compact ? 30 : 40;
@@ -136,7 +143,7 @@ PK.music = (function () {
           '<div class="mu-prog"><i style="width:' + (100 * progress() / (t.duration_ms || 1)) + '%"></i></div><div class="mu-times"><span id="mu-pos">' + mmss(progress()) + '</span><span>' + mmss(t.duration_ms) + '</span></div>' +
           '<div class="mu-ctl"><button class="focusable" data-mu="previous">' + I.get('prev', ic) + '</button><button class="focusable mu-pp" data-mu="toggle" data-autofocus>' + I.get(now.playing ? 'pause' : 'play', ic + 8) + '</button><button class="focusable" data-mu="next">' + I.get('next', ic) + '</button>' +
           '<button class="focusable mu-vol" data-mu="vol:-10">' + I.get('minus', compact ? 22 : 28) + '</button><span class="mu-v">' + ((now.device && now.device.volume != null) ? now.device.volume + '%' : '') + '</span><button class="focusable mu-vol" data-mu="vol:10">' + I.get('plus', compact ? 22 : 28) + '</button></div>' +
-          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc((now.device && now.device.name) || 'Spotify') + (now.demo ? ' · <em class="mu-demo">DEMONSTRAÇÃO — sem Spotify</em>' : '') + '</div></div></div>'
+          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc((now.device && now.device.name) || 'Spotify') + (now.demo ? ' · <em class="mu-demo">DEMONSTRAÇÃO — sem Spotify</em>' : '') + '</div>' + (compact ? '' : upNext(t)) + '</div></div>'
         : (err ? '<div class="mu-empty off">' + I.get('music', 64) + '<b>Spotify ainda não está conectado</b><span>' + esc(err) + '</span>' +
             '<ol class="mu-steps"><li>O PlanKnect precisa ganhar a integração com o Spotify (pedido enviado ao Lovable).</li><li>Depois: PlanKnect › Integrações › Spotify › Conectar (conta Premium).</li><li>Ative “Música” para esta tela em PlanKnect › Dispositivos.</li></ol>' +
             '<button class="focusable" data-mu="retry" data-autofocus>' + I.get('refresh', 22) + ' Tentar de novo</button></div>'
