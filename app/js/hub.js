@@ -7,7 +7,7 @@
   var U = PK.util, I = PK.icons, C = PK.config, esc = U.esc, $ = function (id) { return document.getElementById(id); };
   var state = { members: [], events: [], chores: [], lists: [], meals: [], notes: [], photos: [], watch: null, weather: null, settings: {} };
   var COLORS = { meeting: '#a78bfa', task: '#60a5fa', milestone: '#fb923c', event: '#34d399', family: '#ff7a9a', church: '#fbbf24', birthday: '#e879f9' };
-  var tab = 'today', listSel = null, adding = false, showDone = false, undoId = null, recentDone = {};
+  var tab = 'today', listSel = null, adding = false, showDone = false, undoId = null, recentDone = {}, choreDone = {}, kidShowDone = {};
   var timers = U.store.get('hubTimers', []), lastTouch = Date.now(), pairT = null, recipe = null;
   var amb = U.store.get('hubAmb', { weather: true, agenda: true, afterMin: 5 });
   if (amb.darkAfterMin == null) amb.darkAfterMin = 45; if (amb.nightDark == null) amb.nightDark = true; if (!amb.saver) amb.saver = 'auto';
@@ -270,7 +270,11 @@
     return board + '<div class="hb-kids" style="grid-template-columns:repeat(' + kids.length + ',1fr)">' + kids.map(function (k) {
       var mine = state.chores.filter(function (c) { return c.member === k.id; }), dn = mine.filter(function (c) { return c.done; }).length, pend = mine.filter(function (c) { return c.pending && !c.done; }).length;
       return '<div class="hk" style="--k:' + k.color + '"><div class="hk-h">' + av(k, 40) + '<b>' + esc(first(k)) + '</b><span>' + dn + '/' + mine.length + (pend ? ' · ⏳' + pend : '') + '</span></div>' +
-        (mine.length ? mine.map(function (c) { var p = c.pending && !c.done; return '<button class="hk-c' + (c.done ? ' done' : '') + (p ? ' pending' : '') + '" data-chore="' + esc(c.id) + '"><span class="ic">' + I.get(p ? 'clock' : c.icon, 22) + '</span><span class="hk-t">' + esc(c.title) + (p ? '<small>aguardando um adulto aprovar' + (c.points ? ' · +' + c.points + '★' : '') + '</small>' : c.done && c.points ? '<small>+' + c.points + '★</small>' : '') + '</span></button>'; }).join('') : '<div class="hb-empty">Sem missões</div>') + '</div>';
+        (mine.length ? mine.filter(function (c) { return !c.done || kidShowDone[k.id] || Date.now() - (choreDone[c.id] || 0) < 2500; }).map(function (c) { var p = c.pending && !c.done; return '<button class="hk-c' + (c.done ? ' done' : '') + (p ? ' pending' : '') + '" data-chore="' + esc(c.id) + '"><span class="ic">' + I.get(p ? 'clock' : c.icon, 22) + '</span><span class="hk-t">' + esc(c.title) + (p ? '<small>aguardando um adulto aprovar' + (c.points ? ' · +' + c.points + '★' : '') + '</small>' : c.done && c.points ? '<small>+' + c.points + '★</small>' : '') + '</span></button>'; }).join('') +
+          // feitas somem da lista (ficam guardadas aqui embaixo)
+          (dn ? '<button class="hk-more" data-kiddone="' + esc(k.id) + '">' + (kidShowDone[k.id] ? 'Esconder feitas' : '⭐ ' + dn + (dn > 1 ? ' feitas' : ' feita') + ' · ver') + '</button>' : '') +
+          (dn && dn === mine.length && !kidShowDone[k.id] ? '<div class="hb-empty">Tudo feito hoje! 🎉</div>' : '')
+          : '<div class="hb-empty">Sem missões</div>') + '</div>';
     }).join('') + '</div>';
   }
 
@@ -387,13 +391,26 @@
 
   /* ---------- render ---------- */
   function render() {
+    if (drag && drag.moved) { clearTimeout(render.later); render.later = setTimeout(render, 400); return; } // não redesenha no meio do arrasto
     top();
     var v = $('hb-view');
+    // a tela se redesenha sozinha (dados, relógio); guarda onde cada caixa estava rolada para não voltar ao topo
+    var keep = {}, key = function (el, i) { return el.className + '#' + i; }, kept = false;
+    if (render.tab === tab) scrolled(v, function (el, i) { if (el.scrollTop) { keep[key(el, i)] = el.scrollTop; kept = true; } });
+    render.tab = tab;
     v.innerHTML = { today: today, list: list, chores: chores, tasks: tasksView, dinner: dinner, timers: timersView, weather: weatherView, notes: notesView }[tab]();
     Array.prototype.forEach.call(document.querySelectorAll('.hb-nav button'), function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === tab); });
     $('hb-tbadge').textContent = timers.length ? timers.length : '';
     if (tab === 'list') listQr();
     if (tab === 'dinner') fillDinner();
+    if (kept) scrolled(v, function (el, i) { var y = keep[key(el, i)]; if (y) el.scrollTop = y; });
+  }
+  /* caixas que rolam, numeradas por classe (a coluna da Lara continua sendo a mesma mesmo se a da Sofia mudar) */
+  function scrolled(v, fn) {
+    var n = {};
+    Array.prototype.forEach.call(v.querySelectorAll('.hk, .hl-items, .tk-list, .cds, .hd-main, .hd-week, .hb-tl, .tm-list'), function (el) {
+      var i = n[el.className] = (n[el.className] || 0) + 1; fn(el, i);
+    });
   }
   function listQr() {
     var cl = (state.lists.filter(function (x) { return x.id === listSel; })[0] || state.lists[0] || {}).id; if (!cl) return;
@@ -617,12 +634,13 @@
       if (c && PK.data.mode() === 'live') {
         if (c.done) PK.toast('Missão de hoje já feita ⭐');
         else {
-          c.done = true; var k = member(c.member); if (k) k.weekLocal = (k.weekLocal || 0) + (+c.points || 0); render();
+          c.done = true; choreDone[c.id] = Date.now(); setTimeout(render, 2600); var k = member(c.member); if (k) k.weekLocal = (k.weekLocal || 0) + (+c.points || 0); render();
           PK.data.setChore(c.id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(load, 700); })
             .catch(function (e) { c.done = false; if (k) k.weekLocal -= (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
         }
-      } else if (c) { c.done = !c.done; render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); }
+      } else if (c) { c.done = !c.done; if (c.done) { choreDone[c.id] = Date.now(); setTimeout(render, 2600); } render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); }
     }
+    if (a('data-kiddone')) { kidShowDone[a('data-kiddone')] = !kidShowDone[a('data-kiddone')]; render(); }
     if (a('data-add')) write(PK.data.addListItems(state.lists[0].id, a('data-add').split('|')), 'Ingredientes na lista');
     if (a('data-qadd')) { t.disabled = true; t.classList.add('added'); write(PK.data.addListItems(a('data-l'), [a('data-qadd')]), a('data-qadd') + ' na lista'); }
     if (a('data-timer')) { addTimer(+a('data-timer'), a('data-label') ? a('data-label') + ' · ' + a('data-timer') + ' min' : null); if (tab !== 'timers') tab = 'timers'; render(); }
@@ -684,6 +702,41 @@
     if (act === 'retry') pair();
   });
   document.addEventListener('touchstart', function () { lastTouch = Date.now(); }, { passive: true });
+
+  /* ---------- rolar com o dedo ----------
+     No Nest Hub a rolagem nativa dentro das caixas não funciona (a tela é escalada e tudo era overflow:hidden),
+     então arrastar move o scrollTop da caixa rolável mais próxima; se arrastou, o toque não vira clique. */
+  var drag = null, dragged = 0;
+  function scroller(el) {
+    for (; el && el !== document.body; el = el.parentNode) {
+      if (el.nodeType === 1 && el.scrollHeight > el.clientHeight + 4) { var oy = getComputedStyle(el).overflowY; if (oy === 'auto' || oy === 'scroll') return el; }
+    }
+    return null;
+  }
+  function scaleY() { var r = $('hub').getBoundingClientRect(); return r.height / 600 || 1; }
+  document.addEventListener('touchstart', function (e) {
+    var el = scroller(e.target); drag = el ? { el: el, y: e.touches[0].clientY, top: el.scrollTop, k: scaleY(), moved: false, v: 0, t: Date.now() } : null;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!drag) return;
+    var dy = (e.touches[0].clientY - drag.y) / drag.k;
+    if (Math.abs(dy) > 8) drag.moved = true;
+    if (drag.moved) {
+      var now = Date.now(), prev = drag.el.scrollTop;
+      drag.el.scrollTop = drag.top - dy; drag.v = (drag.el.scrollTop - prev) / Math.max(1, now - drag.t); drag.t = now;
+      e.preventDefault();
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', function () {
+    if (!drag) return;
+    if (drag.moved) {
+      dragged = Date.now();
+      var el = drag.el, v = drag.v; // inércia curta
+      (function glide() { if (Math.abs(v) < 0.02) return; el.scrollTop += v * 16; v *= 0.92; requestAnimationFrame(glide); })();
+    }
+    drag = null;
+  }, { passive: true });
+  document.addEventListener('click', function (e) { if (Date.now() - dragged < 350) { e.stopPropagation(); e.preventDefault(); } }, true);
 
   /* ---------- Alfred (Jarvis) ---------- */
   PK.jarvis.init({
