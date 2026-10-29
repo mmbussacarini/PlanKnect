@@ -1,18 +1,14 @@
 {
-  "version": "1.0",
-  "build": 2026102919,
+  "version": "1.0.1",
+  "build": 2026102921,
   "date": "2026-10-29",
   "notes": [
-    "Novo visual Midnight Cobalt no Mac: barra lateral, Hoje, Deals, Empresas, Projetos e Tarefas.",
-    "Knect num lugar só: a bolinha abre Conversa e Captura rápida no mesmo painel.",
-    "Painel do Knect pode ser minimizado e aberto de novo pela faixa à direita.",
-    "Alertas mais claros: somem sozinhos e criam tarefa já no deal ou projeto da conversa.",
-    "Calendário: cabeçalho da semana corrigido; reunião sem título ganha um nome automático.",
-    "O app se ajusta sozinho à largura da janela (menu de cima ou barra lateral).",
-    "Atualizações automáticas: o PlanKnect procura uma versão nova uma vez por dia."
+    "Corrigido: o PlanKnect podia fechar sozinho ao abrir ou ao redimensionar a janela.",
+    "Assinado e notarizado pela Apple (Developer ID).",
+    "Menu Serviços e atalhos agora dizem Knect."
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0/PlanKnect-1.0.zip",
-  "sha256": "7899d7c610be163dce3295fbd9664d141b3d87f310572d09f07429a512701f1b",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0/PlanKnect-1.0.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.1/PlanKnect-1.0.1.zip",
+  "sha256": "def6c9a5a719b4278fb36ce48ae12d0eccde7cf69d319f4aa10277be289801a0",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.1/PlanKnect-1.0.1.dmg",
   "minimumSystem": "14.0"
 }
