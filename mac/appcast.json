@@ -1,14 +1,14 @@
 {
-  "version": "1.0.1",
-  "build": 2026102921,
+  "version": "1.0.2",
+  "build": 2026102922,
   "date": "2026-10-29",
   "notes": [
-    "Corrigido: o PlanKnect podia fechar sozinho ao abrir ou ao redimensionar a janela.",
-    "Assinado e notarizado pela Apple (Developer ID).",
-    "Menu Serviços e atalhos agora dizem Knect."
+    "Correções",
+    "O app não fecha mais sozinho ao abrir o Knect, o widget de Foco ou a janela de reunião.",
+    "A gravação de reuniões volta a gravar a sua voz: o microfone do MacBook com vários canais deixava a faixa do microfone vazia."
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.1/PlanKnect-1.0.1.zip",
-  "sha256": "def6c9a5a719b4278fb36ce48ae12d0eccde7cf69d319f4aa10277be289801a0",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.1/PlanKnect-1.0.1.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.2/PlanKnect-1.0.2.zip",
+  "sha256": "015e19b0ed8f9a04fb237b5dfa70e8e6b38cf7d077646aa3153ffcc2a3eaf762",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.2/PlanKnect-1.0.2.dmg",
   "minimumSystem": "14.0"
 }
