@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlanKnect para Mac</title>
+<meta name="description" content="Baixe o PlanKnect para Mac: tarefas, reuniões, deals, e-mail e o Knect num app só.">
+<style>
+  :root { --bg: #070b1f; --card: #111735; --line: rgba(255,255,255,.1); --text: #eef0ff; --muted: #9aa8d1; --cyan: #4fd1e8; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: radial-gradient(900px 600px at 20% 0%, #1d1650, var(--bg)); color: var(--text); font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px 16px; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 32px; display: flex; align-items: center; gap: 12px; margin-bottom: 6px; } h1 img { width: 52px; }
+  h2 { font-size: 19px; margin: 28px 0 10px; }
+  p, li { color: var(--muted); }
+  .lead { margin-bottom: 22px; }
+  a.btn { display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(90deg, #5fe0f0, #7aa8ff); color: #071027; font-weight: 700; text-decoration: none; padding: 14px 24px; border-radius: 999px; font-size: 18px; }
+  .meta { font-size: 14px; margin-top: 10px; }
+  .meta a { color: var(--cyan); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+  ol, ul { padding-left: 22px; } li { margin: 4px 0; }
+  #notes li { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1><img src="../app/assets/logo.svg" alt="">PlanKnect para Mac</h1>
+  <p class="lead">Tarefas, reuniões, deals, e-mail, WhatsApp e o Knect num app só, sincronizados com o PlanKnect.</p>
+
+  <a class="btn" id="dl" href="https://github.com/mmbussacarini/PlanKnect/releases/latest/download/PlanKnect.dmg">⬇︎ Baixar para Mac</a>
+  <p class="meta" id="ver">macOS 14 ou mais novo · Apple Silicon e Intel · assinado e verificado pela Apple</p>
+
+  <h2>Instalar</h2>
+  <div class="card">
+    <ol>
+      <li>Abra o arquivo <b>PlanKnect.dmg</b> que você baixou.</li>
+      <li>Arraste o PlanKnect para a pasta <b>Aplicativos</b>.</li>
+      <li>Abra o PlanKnect e entre com a sua conta do PlanKnect.</li>
+    </ol>
+    <p class="meta">O app pede acesso ao calendário, aos contatos e ao microfone só quando você usa essas funções. As novas versões chegam sozinhas pelo próprio app.</p>
+  </div>
+
+  <h2 id="notes-title" hidden>Novidades</h2>
+  <ul id="notes"></ul>
+
+  <p class="meta" style="margin-top:28px"><a href="https://github.com/mmbussacarini/PlanKnect/releases">Todas as versões</a> · <a href="../support.html">Suporte</a> · <a href="../privacy.html">Privacidade</a></p>
+</main>
+<script>
+  // versão atual e novidades vêm do mesmo appcast que o app usa para se atualizar
+  fetch("appcast.json", { cache: "no-store" }).then(r => r.json()).then(a => {
+    document.getElementById("ver").textContent = `Versão ${a.version} · ${new Date(a.date + "T12:00:00").toLocaleDateString("pt-BR")} · macOS ${a.minimumSystem || "14.0"} ou mais novo · Apple Silicon e Intel`;
+    const ul = document.getElementById("notes");
+    (a.notes || []).forEach(n => { const li = document.createElement("li"); li.textContent = n; ul.appendChild(li); });
+    if (ul.children.length) document.getElementById("notes-title").hidden = false;
+  }).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,14 +1,20 @@
 {
-  "version": "1.0.2",
-  "build": 2026102922,
-  "date": "2026-10-29",
+  "version": "1.1",
+  "build": 2026110309,
+  "date": "2026-11-03",
   "notes": [
-    "Correções",
-    "O app não fecha mais sozinho ao abrir o Knect, o widget de Foco ou a janela de reunião.",
-    "A gravação de reuniões volta a gravar a sua voz: o microfone do MacBook com vários canais deixava a faixa do microfone vazia."
+    "Deals mais completos: quadro por etapa, riscos, valor com recorrência, próxima ação com data e ações rápidas.",
+    "Ganho e Perdido: perder pede o motivo e tira do pipeline; ganhar já oferece começar a implantação.",
+    "Renomear deal pelo lápis no título; stakeholders na visão geral e na aba Pessoas.",
+    "Reuniões: editar título, local e descrição, e cancelar (com ou sem aviso aos convidados), inclusive eventos do Google em que você é o organizador.",
+    "Subtarefas: Enter cria a próxima, marque, renomeie ou apague direto na lista.",
+    "Concluir tarefa direto na lista do projeto, com o círculo, e reabrir do mesmo jeito.",
+    "\"Adicionar ao Foco\" no menu de qualquer tarefa ou reunião.",
+    "Correções: o app não fecha mais sozinho logo depois de abrir, e as janelas flutuantes não mudam de tamanho sozinhas.",
+    "Filtro de dono: Minhas (padrão), Equipe, Sem dono ou uma pessoa, no topo da janela; vale para tarefas, reuniões e contadores. Tarefa nova fica com quem foi citado no texto, senão com você."
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.2/PlanKnect-1.0.2.zip",
-  "sha256": "015e19b0ed8f9a04fb237b5dfa70e8e6b38cf7d077646aa3153ffcc2a3eaf762",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.0.2/PlanKnect-1.0.2.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.1/PlanKnect-1.1.zip",
+  "sha256": "8a133fd24794b364ea76a775aa849f3652c413dd6d7cd725269f42f0bce44cd3",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.1/PlanKnect-1.1.dmg",
   "minimumSystem": "14.0"
 }
