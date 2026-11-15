@@ -1,18 +1,13 @@
 {
-  "version": "1.2",
-  "build": 2026111607,
+  "version": "1.2.1",
+  "build": 2026111609,
   "date": "2026-11-16",
   "notes": [
-    "Deals direto no app, sem passar pelo Knect: mudar etapa, ganho ou perdido com motivo, reabrir, renomear e arquivar.",
-    "Editar deal: nome, prioridade, temperatura, próximo passo com data e linhas de valor (quantidade, preço, moeda e recorrência).",
-    "Novo deal na aba Deals, escolhendo empresa e projeto.",
-    "Mover deal para outro projeto ou empresa, vendo o impacto antes de confirmar.",
-    "Implantação de um deal ganho criada na hora: quadro, primeiras tarefas e kickoff opcional.",
-    "Documentos do deal e do projeto: contratos, propostas e assinaturas do PlanKnect ao lado dos anexos.",
-    "Reunião nova já leva as pessoas da equipe escolhidas como participantes."
+    "Painel do pipeline nos Deals: em aberto, ponderado pela temperatura, ganhos, ticket médio, valor por etapa, maiores deals e por empresa.",
+    "Correção: o detalhe do deal e da tarefa não se sobrepõem mais quando o painel lateral abre; a tela de Deals se ajeita à largura que sobra."
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2/PlanKnect-1.2.zip",
-  "sha256": "afdc3ec7c9c58ff6fc4827dc273e8f5e235ef780a2586ed3f45144cc66b5fbff",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2/PlanKnect-1.2.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2.1/PlanKnect-1.2.1.zip",
+  "sha256": "017ccfb2066d4b10833908ae8e526f8f7d6f7760f20c60512ab1ff4ff7934686",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2.1/PlanKnect-1.2.1.dmg",
   "minimumSystem": "14.0"
 }
