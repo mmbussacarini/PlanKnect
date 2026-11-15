@@ -1,20 +1,18 @@
 {
-  "version": "1.1",
-  "build": 2026110309,
-  "date": "2026-11-03",
+  "version": "1.2",
+  "build": 2026111607,
+  "date": "2026-11-16",
   "notes": [
-    "Deals mais completos: quadro por etapa, riscos, valor com recorrência, próxima ação com data e ações rápidas.",
-    "Ganho e Perdido: perder pede o motivo e tira do pipeline; ganhar já oferece começar a implantação.",
-    "Renomear deal pelo lápis no título; stakeholders na visão geral e na aba Pessoas.",
-    "Reuniões: editar título, local e descrição, e cancelar (com ou sem aviso aos convidados), inclusive eventos do Google em que você é o organizador.",
-    "Subtarefas: Enter cria a próxima, marque, renomeie ou apague direto na lista.",
-    "Concluir tarefa direto na lista do projeto, com o círculo, e reabrir do mesmo jeito.",
-    "\"Adicionar ao Foco\" no menu de qualquer tarefa ou reunião.",
-    "Correções: o app não fecha mais sozinho logo depois de abrir, e as janelas flutuantes não mudam de tamanho sozinhas.",
-    "Filtro de dono: Minhas (padrão), Equipe, Sem dono ou uma pessoa, no topo da janela; vale para tarefas, reuniões e contadores. Tarefa nova fica com quem foi citado no texto, senão com você."
+    "Deals direto no app, sem passar pelo Knect: mudar etapa, ganho ou perdido com motivo, reabrir, renomear e arquivar.",
+    "Editar deal: nome, prioridade, temperatura, próximo passo com data e linhas de valor (quantidade, preço, moeda e recorrência).",
+    "Novo deal na aba Deals, escolhendo empresa e projeto.",
+    "Mover deal para outro projeto ou empresa, vendo o impacto antes de confirmar.",
+    "Implantação de um deal ganho criada na hora: quadro, primeiras tarefas e kickoff opcional.",
+    "Documentos do deal e do projeto: contratos, propostas e assinaturas do PlanKnect ao lado dos anexos.",
+    "Reunião nova já leva as pessoas da equipe escolhidas como participantes."
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.1/PlanKnect-1.1.zip",
-  "sha256": "8a133fd24794b364ea76a775aa849f3652c413dd6d7cd725269f42f0bce44cd3",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.1/PlanKnect-1.1.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2/PlanKnect-1.2.zip",
+  "sha256": "afdc3ec7c9c58ff6fc4827dc273e8f5e235ef780a2586ed3f45144cc66b5fbff",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2/PlanKnect-1.2.dmg",
   "minimumSystem": "14.0"
 }
