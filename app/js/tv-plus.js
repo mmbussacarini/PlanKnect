@@ -9,11 +9,15 @@ PK.plus = (function () {
   var timers = U.store.get('tvTimers', []), recipe = null;
   var PRESETS = [['Ovo cozido', 9, 'tooth'], ['Chá', 4, 'plate'], ['Massa', 10, 'chef'], ['Arroz', 18, 'chef'], ['Pizza', 12, 'chef'], ['Bolo', 40, 'cake'],
     ['Pipoca', 3, 'sparkle'], ['Banho das crianças', 20, 'users'], ['Tela / TV', 30, 'tv'], ['Dever de casa', 45, 'book']];
+  PK.i18n.bind(PRESETS, [0]);
   var NOTES = ['Jantar pronto!', 'Já volto', 'Chego em 10 min', 'Hora de dormir', 'Desçam para o café', 'Acabou o leite!', 'Alguém viu minha chave?', 'Reunião até as 18h'];
+  PK.i18n.bind(NOTES);
   var STAPLES = ['Leite', 'Pão', 'Ovos', 'Banana', 'Café', 'Arroz', 'Feijão', 'Tomate', 'Queijo', 'Manteiga', 'Papel higiênico', 'Detergente'];
+  PK.i18n.bind(STAPLES);
   var MISSIONS = [['Arrumar a cama', 'bed', 'manhã', 5], ['Escovar os dentes', 'tooth', 'manhã', 2], ['Dever de casa', 'book', 'tarde', 10], ['Guardar os brinquedos', 'toy', 'tarde', 5],
     ['Colocar a mesa', 'plate', 'noite', 5], ['Separar a roupa', 'shirt', 'noite', 3], ['Ler 20 minutos', 'book', 'noite', 5], ['Dar comida ao pet', 'paw', 'manhã', 5],
     ['Levar o lixo', 'trash', 'tarde', 5], ['Arrumar o quarto', 'home', 'tarde', 10], ['Lavar a louça', 'plate', 'noite', 10], ['Praticar instrumento', 'star', 'tarde', 10]];
+  PK.i18n.bind(MISSIONS, [0]); // o período (manhã/tarde/noite) é valor da API: só a tela traduz
   var COLORS = { meeting: '#a78bfa', task: '#60a5fa', milestone: '#fb923c', event: '#34d399', family: '#ff7a9a', church: '#fbbf24', birthday: '#e879f9' };
 
   function member(st, id) { return st.members.filter(function (m) { return m.id === id || m.familyMemberId === id; })[0]; }

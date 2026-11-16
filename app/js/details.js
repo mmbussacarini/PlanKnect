@@ -106,7 +106,7 @@ PK.details = (function () {
       '<h1 class="dt-title">' + esc(d.title) + '</h1>' +
       (proj || d.project ? '<div class="dt-meta">' + PK.views.projChip({ project: d.project || (proj && proj.name), projectColor: proj && proj.color, org: (proj && proj.org) || base.org }) + '</div>' : '') +
       (desc ? '<p class="dt-desc">' + esc(desc).replace(/\n/g, '<br>') + '</p>' : '') +
-      (subs.length ? sec('Subtarefas', done + ' de ' + subs.length) + '<div class="bar sub"><i style="width:' + Math.round(done / subs.length * 100) + '%"></i></div>' +
+      (subs.length ? sec('Subtarefas', PK.t('{a} de {b}', { a: done, b: subs.length })) + '<div class="bar sub"><i style="width:' + Math.round(done / subs.length * 100) + '%"></i></div>' +
         subs.map(function (x, i) {
           return '<div class="dt-check focusable' + (x.done ? ' done' : '') + '" data-subtask="' + esc(d.id) + '|' + esc(x.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '><span class="li-box">' + I.get('check', 24, ' stroke-width="3"') + '</span>' + esc(x.title) + '</div>';
         }).join('') : '') +

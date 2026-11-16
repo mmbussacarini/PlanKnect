@@ -116,7 +116,7 @@ PK.voice = (function () {
         playSrc(r.url || ('data:' + (r.mime || 'audio/mpeg') + ';base64,' + r.audio), my, function () { play(i + 1); }, function () { device(parts.slice(i).join(' '), lang, my); });
       }).catch(function (e) {
         if (/404|not_found|405/.test(e && e.message)) { down = Date.now(); U.store.set('ttsDown2', down); }
-        lastErr = 'tts: ' + (e && e.message); if (window.console) console.warn('[Alfred] voz do PlanKnect falhou:', e && e.message);
+        lastErr = 'tts: ' + (e && e.message); if (window.console) console.warn('[Knect] voz do PlanKnect falhou:', e && e.message);
         if (my === gen) device(parts.slice(i).join(' '), lang, my);
       });
     };
@@ -206,10 +206,14 @@ PK.jarvis = (function () {
   var opt = null, el = null, dismissed = U.store.get('aiDismissed', {}), shownDay = U.store.get('aiBriefDay', {});
   var mini = null, fullEl = null, fullOrb = null, docked = false, meetCtx = null; // meetCtx: reunião atual (Perguntar à reunião)
   var current = [], busy = false, rec = null, recT = null, levelT = null, orb = null, log = [], memory = U.store.get('aiMemory', []);
-  function name() { return (PK.config.ai && PK.config.ai.name) || 'Alfred'; }
-  function lang() { return PK.settings.get('ai.lang') || 'en-GB'; }
+  function name() { return (PK.config.ai && PK.config.ai.name) || 'Knect'; }
+  // idioma do Knect: Ajustes › Knect responde em ("auto" = idioma do app)
+  function lang() { var l = PK.settings.get('ai.lang'); return !l || l === 'auto' ? PK.i18n.speech() : l; }
+  function listenLang() { var l = PK.settings.get('ai.listenLang'); return !l || l === 'auto' ? PK.i18n.speech() : l; }
   function EN() { return lang().indexOf('en') === 0; }
-  function L(pt, en) { return EN() ? en : pt; }
+  function ES() { return lang().indexOf('es') === 0; }
+  // L(pt, en, es): sem "es", usa o dicionário (js/i18n-dict.js)
+  function L(pt, en, es) { return EN() ? en : ES() ? (es != null ? es : PK.t(pt, null, 'es')) : pt; }
   function live() { return PK.data.mode() === 'live'; }
   function S() { return opt.getState(); }
   function title(e) { return e.private ? L('Ocupado', 'Busy') : e.title; }
@@ -226,33 +230,35 @@ PK.jarvis = (function () {
     var evs = st.events.filter(function (e) { return U.sameDay(e.start, day) && !e.allDay && (evening || e.end > now); });
     var lines = [], speech = [];
     var hh = (st.household && st.household.name || '').replace(/\s*(family|família)(\s+calendar)?$/i, '');
-    speech.push(greet(h) + (hh ? L(', família ' + hh, ', ' + hh + ' family') : '') + '.');
+    speech.push(greet(h) + (hh ? L(', família ' + hh, ', ' + hh + ' family', ', familia ' + hh) : '') + '.');
     if (evs.length) {
-      lines.push({ ic: 'calendar', t: when + ': ' + plural(evs.length, L('compromisso', 'engagement'), L('compromissos', 'engagements')), s: evs.slice(0, 3).map(function (e) { return U.hm(e.start) + ' ' + title(e); }).join(' · ') });
+      lines.push({ ic: 'calendar', t: when + ': ' + plural(evs.length, L('compromisso', 'engagement', 'compromiso'), L('compromissos', 'engagements', 'compromisos')), s: evs.slice(0, 3).map(function (e) { return U.hm(e.start) + ' ' + title(e); }).join(' · ') });
       speech.push(L(when + ' vocês têm ' + plural(evs.length, 'compromisso', 'compromissos') + ', o primeiro às ' + U.hm(evs[0].start) + ', ' + title(evs[0]) + '.',
-        when + ' you have ' + plural(evs.length, 'engagement', 'engagements') + ', the first at ' + U.hm(evs[0].start) + ', ' + title(evs[0]) + '.'));
-    } else { lines.push({ ic: 'calendar', t: L(when + ' a agenda está livre', when + ', the diary is clear'), s: '' }); speech.push(L('A agenda está livre.', 'The diary is entirely clear.')); }
+        when + ' you have ' + plural(evs.length, 'engagement', 'engagements') + ', the first at ' + U.hm(evs[0].start) + ', ' + title(evs[0]) + '.',
+        when + ' tienen ' + plural(evs.length, 'compromiso', 'compromisos') + ', el primero a las ' + U.hm(evs[0].start) + ', ' + title(evs[0]) + '.'));
+    } else { lines.push({ ic: 'calendar', t: L(when + ' a agenda está livre', when + ', the diary is clear', when + ' la agenda está libre'), s: '' }); speech.push(L('A agenda está livre.', 'The diary is entirely clear.')); }
     var w = st.weather;
     if (w) {
       var d = evening ? w.days[1] : w.days[0];
       if (d) {
         var wet = (d.rain || 0) >= 50;
-        lines.push({ ic: I.weather(d.code, true), t: d.min + '° – ' + d.max + '° · ' + L(I.weatherText(d.code).toLowerCase(), WX_EN(d.code)), s: wet ? L(d.rain + '% de chuva — levem guarda-chuva', d.rain + '% chance of rain — an umbrella is advised') : '' });
+        lines.push({ ic: I.weather(d.code, true), t: d.min + '° – ' + d.max + '° · ' + L(I.weatherText(d.code).toLowerCase(), WX_EN(d.code), I.weatherText(d.code).toLowerCase()), s: wet ? L(d.rain + '% de chuva — levem guarda-chuva', d.rain + '% chance of rain — an umbrella is advised', d.rain + '% de lluvia — lleven paraguas') : '' });
         speech.push(L('Previsão de ' + d.min + ' a ' + d.max + ' graus' + (wet ? ', com ' + d.rain + ' por cento de chance de chuva' : '') + '.',
-          'The forecast is ' + d.min + ' to ' + d.max + ' degrees' + (wet ? ', with a ' + d.rain + ' percent chance of rain, so I would take an umbrella' : ', ' + WX_EN(d.code)) + '.'));
+          'The forecast is ' + d.min + ' to ' + d.max + ' degrees' + (wet ? ', with a ' + d.rain + ' percent chance of rain, so I would take an umbrella' : ', ' + WX_EN(d.code)) + '.',
+          'Pronóstico de ' + d.min + ' a ' + d.max + ' grados' + (wet ? ', con ' + d.rain + ' por ciento de probabilidad de lluvia' : '') + '.'));
       }
     }
     var sod = U.startOfDay(now), open = (st.tasks || []).filter(function (t) { return t.status !== 'done'; });
     var tToday = open.filter(function (t) { return t.due && U.sameDay(t.due, day); }), late = open.filter(function (t) { return t.due && t.due < sod; });
     if (tToday.length || late.length) {
-      lines.push({ ic: 'task', t: (tToday.length ? plural(tToday.length, L('tarefa', 'task'), L('tarefas', 'tasks')) + ' ' + when.toLowerCase() : '') + (tToday.length && late.length ? ' · ' : '') + (late.length ? late.length + L(' atrasada' + (late.length > 1 ? 's' : ''), ' overdue') : ''), s: (tToday[0] || late[0]).title });
-      speech.push(tToday.length ? L('Você tem ' + plural(tToday.length, 'tarefa', 'tarefas') + ' ' + when.toLowerCase() + '.', 'There ' + (tToday.length === 1 ? 'is one task' : 'are ' + tToday.length + ' tasks') + ' due ' + when.toLowerCase() + '.')
-        : L('Há ' + late.length + ' tarefas atrasadas.', 'There are ' + late.length + ' overdue tasks, whenever you have a moment.'));
+      lines.push({ ic: 'task', t: (tToday.length ? plural(tToday.length, L('tarefa', 'task', 'tarea'), L('tarefas', 'tasks', 'tareas')) + ' ' + when.toLowerCase() : '') + (tToday.length && late.length ? ' · ' : '') + (late.length ? late.length + L(' atrasada' + (late.length > 1 ? 's' : ''), ' overdue', ' atrasada' + (late.length > 1 ? 's' : '')) : ''), s: (tToday[0] || late[0]).title });
+      speech.push(tToday.length ? L('Você tem ' + plural(tToday.length, 'tarefa', 'tarefas') + ' ' + when.toLowerCase() + '.', 'There ' + (tToday.length === 1 ? 'is one task' : 'are ' + tToday.length + ' tasks') + ' due ' + when.toLowerCase() + '.', 'Tienes ' + plural(tToday.length, 'tarea', 'tareas') + ' ' + when.toLowerCase() + '.')
+        : L('Há ' + late.length + ' tarefas atrasadas.', 'There are ' + late.length + ' overdue tasks, whenever you have a moment.', 'Hay ' + late.length + ' tareas atrasadas.'));
     }
     var meal = (st.meals || []).filter(function (m) { return U.sameDay(m.date, day); })[0];
-    if (meal) { lines.push({ ic: 'chef', t: L('Jantar', 'Dinner') + ': ' + meal.title, s: '' }); speech.push(L('No jantar, ' + meal.title + '.', 'Dinner will be ' + meal.title + '.')); }
+    if (meal) { lines.push({ ic: 'chef', t: L('Jantar', 'Dinner') + ': ' + meal.title, s: '' }); speech.push(L('No jantar, ' + meal.title + '.', 'Dinner will be ' + meal.title + '.', 'Para cenar, ' + meal.title + '.')); }
     var kids = (st.members || []).filter(function (m) { return m.kid; });
-    if (kids.length && st.chores && st.chores.length) { var pend = st.chores.filter(function (c) { return !c.done; }).length; if (pend) lines.push({ ic: 'star', t: L(pend + ' missões das crianças pendentes', pend + ' children’s missions to go'), s: kids.map(first).join(', ') }); }
+    if (kids.length && st.chores && st.chores.length) { var pend = st.chores.filter(function (c) { return !c.done; }).length; if (pend) lines.push({ ic: 'star', t: L(pend + ' missões das crianças pendentes', pend + ' children’s missions to go', pend + ' misiones de los niños pendientes'), s: kids.map(first).join(', ') }); }
     speech.push(L('Se precisar de algo, é só chamar.', 'Do let me know if I can be of any help.'));
     return { title: greet(h) + (evening ? L(' · resumo de amanhã', ' · tomorrow at a glance') : L(' · seu dia', ' · your day')), lines: lines, speech: speech.join(' ') };
   }
@@ -266,26 +272,26 @@ PK.jarvis = (function () {
       if (a.start < b.end && b.start < a.end) {
         var who = (a.members || []).filter(function (m) { return (b.members || []).indexOf(m) >= 0; });
         if (who.length) { var m = (st.members || []).filter(function (x) { return x.id === who[0]; })[0];
-          out.push({ id: 'conflict-' + a.id + '-' + b.id, ic: 'calendar', tone: 'warn', title: L('Conflito na agenda' + (m ? ' de ' + first(m) : ''), 'A clash in ' + (m ? first(m) + '’s' : 'the') + ' diary'), body: title(a) + L(' e ', ' and ') + title(b) + L(' às ', ' at ') + U.hm(b.start) + '.', accept: L('Ver', 'Show me'), action: { open: { kind: 'event', id: b.id } } }); }
+          out.push({ id: 'conflict-' + a.id + '-' + b.id, ic: 'calendar', tone: 'warn', title: L('Conflito na agenda' + (m ? ' de ' + first(m) : ''), 'A clash in ' + (m ? first(m) + '’s' : 'the') + ' diary', 'Conflicto en la agenda' + (m ? ' de ' + first(m) : '')), body: title(a) + L(' e ', ' and ', ' y ') + title(b) + L(' às ', ' at ', ' a las ') + U.hm(b.start) + '.', accept: L('Ver', 'Show me'), action: { open: { kind: 'event', id: b.id } } }); }
       }
     }
     var nm = timed.filter(function (e) { return e.type === 'meeting' && e.start > now && e.start - now < 30 * 60000; })[0];
-    if (nm) { var mins = Math.round((nm.start - now) / 60000); out.push({ id: 'prep-' + nm.id, ic: 'video', title: L('Reunião em ' + mins + ' min', 'Meeting in ' + mins + ' minutes'), body: title(nm) + L('. Quer ver a pauta e os participantes?', '. Shall I bring up the agenda and attendees?'), accept: L('Abrir', 'Yes, please'), action: { open: { kind: 'event', id: nm.id } } }); }
+    if (nm) { var mins = Math.round((nm.start - now) / 60000); out.push({ id: 'prep-' + nm.id, ic: 'video', title: L('Reunião em ' + mins + ' min', 'Meeting in ' + mins + ' minutes', 'Reunión en ' + mins + ' min'), body: title(nm) + L('. Quer ver a pauta e os participantes?', '. Shall I bring up the agenda and attendees?', '. ¿Quieres ver la agenda y los participantes?'), accept: L('Abrir', 'Yes, please'), action: { open: { kind: 'event', id: nm.id } } }); }
     var w = st.weather;
     if (w && w.hours) timed.filter(function (e) { return e.start - now < 864e5 && ['family', 'event', 'church'].indexOf(e.type) >= 0; }).slice(0, 3).forEach(function (e) {
       var hr = w.hours.filter(function (x) { return Math.abs(x.time - e.start) < 1800001; })[0];
-      if (hr && hr.rain >= 50) out.push({ id: 'rain-' + e.id, ic: 'rain', title: L('Chuva às ', 'Rain at ') + U.hm(e.start), body: L(hr.rain + '% de chance durante ' + title(e) + '. Lembrar a família de levar guarda-chuva?', hr.rain + '% chance during ' + title(e) + '. Shall I remind the family to take umbrellas?'), accept: L('Avisar a família', 'Remind them'), action: { broadcast: { kind: 'family', icon: 'rain', title: L('Levem guarda-chuva: ', 'Umbrellas, please: ') + title(e) + ' · ' + U.hm(e.start) } } });
+      if (hr && hr.rain >= 50) out.push({ id: 'rain-' + e.id, ic: 'rain', title: L('Chuva às ', 'Rain at ') + U.hm(e.start), body: L(hr.rain + '% de chance durante ' + title(e) + '. Lembrar a família de levar guarda-chuva?', hr.rain + '% chance during ' + title(e) + '. Shall I remind the family to take umbrellas?', hr.rain + '% de probabilidad durante ' + title(e) + '. ¿Aviso a la familia que lleve paraguas?'), accept: L('Avisar a família', 'Remind them'), action: { broadcast: { kind: 'family', icon: 'rain', title: L('Levem guarda-chuva: ', 'Umbrellas, please: ') + title(e) + ' · ' + U.hm(e.start) } } });
     });
     var bl = (st.lists || []).filter(function (l) { return /payment|pagamento|conta/i.test(l.name); })[0];
     if (bl) { var due = bl.items.filter(function (it) { return !it.done && it.due && new Date(it.due) - sod < 3 * 864e5; });
-      if (due.length) out.push({ id: 'bills-' + sod.toDateString(), ic: 'card', tone: 'warn', title: L(plural(due.length, 'conta vencendo', 'contas vencendo'), plural(due.length, 'bill falling due', 'bills falling due')), body: due.slice(0, 3).map(function (x) { return x.title; }).join(', ') + '.', accept: L('Ver contas', 'See bills'), action: { view: 'lists', list: bl.id } }); }
+      if (due.length) out.push({ id: 'bills-' + sod.toDateString(), ic: 'card', tone: 'warn', title: L(plural(due.length, 'conta vencendo', 'contas vencendo'), plural(due.length, 'bill falling due', 'bills falling due'), plural(due.length, 'cuenta por vencer', 'cuentas por vencer')), body: due.slice(0, 3).map(function (x) { return x.title; }).join(', ') + '.', accept: L('Ver contas', 'See bills'), action: { view: 'lists', list: bl.id } }); }
     var late = (st.tasks || []).filter(function (t) { return t.status !== 'done' && t.due && t.due < sod; });
-    if (late.length >= 3) out.push({ id: 'late-' + sod.toDateString(), ic: 'task', title: L(late.length + ' tarefas atrasadas', late.length + ' overdue tasks'),
+    if (late.length >= 3) out.push({ id: 'late-' + sod.toDateString(), ic: 'task', title: L(late.length + ' tarefas atrasadas', late.length + ' overdue tasks', late.length + ' tareas atrasadas'),
       body: live() ? L('Quer revisar e replanejar?', 'Would you care to review and replan them?') : L('Quer que eu adie as de prioridade baixa e média para a próxima semana?', 'Shall I move the low and medium priority ones to next week?'),
       accept: live() ? L('Revisar', 'Review') : L('Adiar', 'Move them'), action: live() ? { view: 'work' } : { snoozeLate: true } });
     var meal = (st.meals || []).filter(function (m) { return U.sameDay(m.date, now); })[0];
     if (meal && now.getHours() < 18) out.push({ id: 'meal-' + sod.toDateString(), ic: 'chef', title: L('Jantar: ', 'Dinner: ') + meal.title, body: L('Confiro os ingredientes que faltam?', 'Shall I check what ingredients we are missing?'), accept: L('Conferir', 'Check'), action: { open: { kind: 'meal', id: meal.title } } });
-    if (now.getHours() >= 18 && st.chores && st.chores.some(function (c) { return !c.done; })) { var np = st.chores.filter(function (c) { return !c.done; }).length; out.push({ id: 'chores-' + sod.toDateString(), ic: 'star', title: L('Missões pendentes', 'Missions outstanding'), body: L(np + ' missões ainda não feitas hoje. Avisar as crianças?', np + ' missions still to do today. Shall I remind the children?'), accept: L('Avisar', 'Remind them'), action: { broadcast: { kind: 'family', icon: 'star', title: L('Hora de terminar as missões de hoje!', 'Time to finish today’s missions!') } } }); }
+    if (now.getHours() >= 18 && st.chores && st.chores.some(function (c) { return !c.done; })) { var np = st.chores.filter(function (c) { return !c.done; }).length; out.push({ id: 'chores-' + sod.toDateString(), ic: 'star', title: L('Missões pendentes', 'Missions outstanding'), body: L(np + ' missões ainda não feitas hoje. Avisar as crianças?', np + ' missions still to do today. Shall I remind the children?', np + ' misiones sin hacer hoy. ¿Aviso a los niños?'), accept: L('Avisar', 'Remind them'), action: { broadcast: { kind: 'family', icon: 'star', title: L('Hora de terminar as missões de hoje!', 'Time to finish today’s missions!') } } }); }
     return out.filter(function (s) { return !dismissed[s.id]; });
   }
 
@@ -413,7 +419,7 @@ PK.jarvis = (function () {
     var inp = el.querySelector('.al-in'); if (inp) inp.placeholder = L('Ou digite: “adiciona café na lista”', 'Or type: “add coffee to the list”');
     var ph = el.querySelector('.al-phone b'); if (ph) { ph.textContent = L('Fale pelo celular', 'Speak from your phone'); el.querySelector('.al-phone span').textContent = L('Aponte a câmera, segure e fale', 'Scan, hold and speak'); }
     var tryList = meetCtx ? [['Resuma os últimos 10 minutos', 'Summarise the last ten minutes'], ['O que foi decidido?', 'What has been decided?'], ['Quais tarefas estão sem responsável?', 'Which tasks have no owner?'], ['O que disseram sobre o prazo?', 'What was said about the deadline?']] : TRY;
-    el.querySelector('.al-try').innerHTML = '<div class="al-h2">' + (meetCtx ? L('Pergunte à reunião', 'Ask the meeting') + ' · ' + esc(meetCtx.title || '') : L('Experimente dizer', 'Try saying')) + '</div><div class="al-chips">' + tryList.slice(0, opt.compact ? 3 : 4).map(function (x) { var s = EN() ? x[1] : x[0]; return '<button class="al-chip focusable" data-al-say="' + esc(s) + '">“' + esc(s) + '”</button>'; }).join('') + '</div>';
+    el.querySelector('.al-try').innerHTML = '<div class="al-h2">' + (meetCtx ? L('Pergunte à reunião', 'Ask the meeting') + ' · ' + esc(meetCtx.title || '') : L('Experimente dizer', 'Try saying')) + '</div><div class="al-chips">' + tryList.slice(0, opt.compact ? 3 : 4).map(function (x) { var s = L(x[0], x[1]); return '<button class="al-chip focusable" data-al-say="' + esc(s) + '">“' + esc(s) + '”</button>'; }).join('') + '</div>';
     state('idle');
   }
   // mostra na hora o resumo local e as sugestões locais; o texto do PlanKnect (IA, alguns segundos) entra quando chegar
@@ -421,7 +427,7 @@ PK.jarvis = (function () {
     var body = el.querySelector('.al-body'), need = attention(); current = sg;
     body.innerHTML = '<div class="al-h">' + esc(b.title || '') + '</div>' + needHtml(need) + (b.server ? '<p class="al-srv">' + I.get('sparkle', 22) + esc(b.server) + '</p>' : '<p class="al-srv wait" style="display:none"></p>') + '<div class="al-brief">' + (b.lines || []).slice(0, need.length || b.server ? 2 : (opt.compact ? 4 : 6)).map(function (l) {
         return '<div class="al-l">' + I.get(l.ic, opt.compact ? 22 : 32) + '<div><b>' + esc(l.t) + '</b>' + (l.s ? '<span>' + esc(l.s) + '</span>' : '') + '</div></div>'; }).join('') + '</div>' +
-      '<div class="al-h2">' + (sg.length ? L('Sugestões do ' + name(), name() + ' suggests') : L('Nada pendente — tudo em ordem', 'Nothing pending — all in order')) + '</div>' +
+      '<div class="al-h2">' + (sg.length ? L('Sugestões do ' + name(), name() + ' suggests', 'Sugerencias de ' + name()) : L('Nada pendente — tudo em ordem', 'Nothing pending — all in order')) + '</div>' +
       '<div class="al-sug">' + sg.slice(0, opt.compact ? 2 : 3).map(card).join('') + '</div>';
     drawMemory();
     if (opt.focus) opt.focus(el);
@@ -487,11 +493,11 @@ PK.jarvis = (function () {
       }).catch(function (e) { PK.toast(PK.writeErr(e)); });
       return;
     }
-    if (a.broadcast) PK.data.broadcast(a.broadcast).then(function () { reply({ reply: L('Avisei a família.', 'I have let the family know.'), en: 'I have let the family know.' }); });
+    if (a.broadcast) PK.data.broadcast(a.broadcast).then(function () { reply({ reply: L('Avisei a família.', 'I have let the family know.'), en: 'I have let the family know.', es: 'Avisé a la familia.' }); });
     if (a.snoozeLate && !live()) {
       var st = S(), sod = U.startOfDay(new Date()), next = U.addDays(sod, 7).toISOString().slice(0, 10);
       var list = (st.tasks || []).filter(function (t) { return t.status !== 'done' && t.due && t.due < sod && t.priority !== 'high'; });
-      Promise.all(list.map(function (t) { return PK.data.updateTask(t.id, { due: next }); })).then(function () { reply({ reply: list.length + ' tarefas adiadas para a próxima semana.', en: 'I have moved ' + list.length + ' tasks to next week.' }); if (opt.refresh) opt.refresh(); });
+      Promise.all(list.map(function (t) { return PK.data.updateTask(t.id, { due: next }); })).then(function () { reply({ reply: list.length + ' tarefas adiadas para a próxima semana.', en: 'I have moved ' + list.length + ' tasks to next week.', es: list.length + ' tareas pospuestas para la próxima semana.' }); if (opt.refresh) opt.refresh(); });
     }
     if (a.open || a.view) { close(); opt.navigate(a); }
   }
@@ -502,7 +508,7 @@ PK.jarvis = (function () {
     if (r.heard) el.querySelector('.al-heard').textContent = '“' + r.heard + '”';
     if (r.remembered && r.remembered.length) loadMemory();
     drawProposals(r.proposals || []);
-    var txt = (EN() && r.en) ? r.en : (r.reply || L('Feito.', 'Done.'));
+    var txt = (EN() && r.en) ? r.en : (ES() && r.es) ? r.es : r.reply ? (ES() && !live() ? PK.i18n.tr(r.reply, 'es') : r.reply) : L('Feito.', 'Done.'); // demo em espanhol: modelos do dicionário
     var box = el.querySelector('.al-reply'); box.textContent = txt; box.className = 'al-reply show';
     var said = txt;
     if (EN() && !r.en && !looksEnglish(txt)) said = ACK[Math.floor(Math.random() * ACK.length)]; // resposta veio em PT: fala só uma confirmação britânica
@@ -519,7 +525,7 @@ PK.jarvis = (function () {
     var box = el.querySelector('.al-reply'); box.textContent = ''; box.className = 'al-reply';
     state('think');
     var pr;
-    if (meetCtx && !live()) pr = PK.data.meetingInsights(meetCtx.id).then(function (r) { return { reply: 'Pelo que foi dito: ' + (r.summary || 'ainda não há falas suficientes.'), en: 'From what has been said: ' + (r.summary || 'there is not enough yet.') }; }); // demo
+    if (meetCtx && !live()) pr = PK.data.meetingInsights(meetCtx.id).then(function (r) { return { reply: 'Pelo que foi dito: ' + (r.summary || 'ainda não há falas suficientes.'), en: 'From what has been said: ' + (r.summary || 'there is not enough yet.'), es: 'Por lo dicho: ' + (r.summary || 'todavía no hay suficiente conversación.') }; }); // demo
     else { try { pr = opt.command(text, { lang: lang(), meeting_id: meetCtx && meetCtx.id, onDelta: function (t) { box.textContent = t; box.className = 'al-reply show'; } }); } catch (err) { pr = Promise.reject(err); } }
     pr.then(function (r) { busy = false; reply(r || {}); })
       .catch(function (e) { busy = false; state('idle'); box.textContent = L('Desculpe, não consegui: ', 'I do beg your pardon — ') + ((e && e.message) || ''); box.className = 'al-reply show err'; });
@@ -534,19 +540,19 @@ PK.jarvis = (function () {
   }
 
   /* ---------- "Precisa de você" (como o painel Needs Attention do jarvis) ---------- */
-  function ago(ms) { var m = Math.round(Math.abs(ms) / 60000); return m < 60 ? m + ' min' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + L(' dias', ' days'); }
+  function ago(ms) { var m = Math.round(Math.abs(ms) / 60000); return m < 60 ? m + ' min' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + L(' dias', ' days', ' días'); }
   function attention() {
     var st = S(), now = new Date(), sod = U.startOfDay(now), out = [];
     var mt = st.events.filter(function (e) { return !e.allDay && (e.type === 'meeting' || e.video) && e.end > now && e.start - now < 15 * 60000; })[0];
     if (mt) { var on = mt.start <= now; out.push({ ic: 'video', t: title(mt), s: on ? L('acontecendo agora', 'happening now') : L('começa em ', 'starts in ') + ago(mt.start - now), go: 'event|' + mt.id,
-      say: on ? L(title(mt) + ' já começou.', title(mt) + ' has already begun.') : L(title(mt) + ' começa em ' + ago(mt.start - now) + '.', title(mt) + ' begins in ' + ago(mt.start - now) + '.') }); }
+      say: on ? L(title(mt) + ' já começou.', title(mt) + ' has already begun.', title(mt) + ' ya empezó.') : L(title(mt) + ' começa em ' + ago(mt.start - now) + '.', title(mt) + ' begins in ' + ago(mt.start - now) + '.', title(mt) + ' empieza en ' + ago(mt.start - now) + '.') }); }
     var hi = (st.tasks || []).filter(function (t) { return t.status !== 'done' && /high|urgent/.test(t.priority) && t.due && t.due < U.addDays(sod, 1); })[0];
     if (hi) out.push({ ic: 'task', t: hi.title, s: hi.due < sod ? L('atrasada há ', 'overdue by ') + ago(now - hi.due) : L('vence hoje', 'due today'), go: 'task|' + hi.id,
-      say: L('A tarefa ' + hi.title + ' é urgente.', 'The task ' + hi.title + ' is urgent.') });
+      say: L('A tarefa ' + hi.title + ' é urgente.', 'The task ' + hi.title + ' is urgent.', 'La tarea ' + hi.title + ' es urgente.') });
     var bl = (st.lists || []).filter(function (l) { return /payment|pagamento|conta/i.test(l.name); })[0];
     var bill = bl && bl.items.filter(function (it) { return !it.done && it.due && new Date(it.due) < U.addDays(sod, 1); })[0];
     if (bill) out.push({ ic: 'card', t: bill.title, s: new Date(bill.due) < sod ? L('conta vencida', 'bill overdue') : L('conta vence hoje', 'bill due today'), go: 'view|lists',
-      say: L('A conta ' + bill.title + ' vence hoje.', bill.title + ' falls due today.') });
+      say: L('A conta ' + bill.title + ' vence hoje.', bill.title + ' falls due today.', 'La cuenta ' + bill.title + ' vence hoy.') });
     return out.slice(0, opt.compact ? 1 : 2);
   }
   function needHtml(need) {
@@ -563,26 +569,26 @@ PK.jarvis = (function () {
   }
   function drawMemory() {
     var box = el && el.querySelector('#al-mem'); if (!box) return;
-    box.innerHTML = memory.length ? '<div class="al-h2">' + L(name() + ' lembra', name() + ' remembers') + ' · ' + memory.length + '</div><div class="al-chips">' +
+    box.innerHTML = memory.length ? '<div class="al-h2">' + L(name() + ' lembra', name() + ' remembers', name() + ' recuerda') + ' · ' + memory.length + '</div><div class="al-chips">' +
       memory.slice(-3).reverse().map(function (m) { return '<span class="al-memo">' + I.get('note', 18) + esc(m.text) + '</span>'; }).join('') + '</div>' : '';
   }
   function memoryIntent(text) {
     var m;
-    if ((m = text.match(/^(?:alfred[,\s]+)?(?:lembr[ae](?:-se)?|lembrar|anota(?:r)?|remember|note)\s+(?:que\s+|that\s+|de\s+)?(.+)/i))) {
+    if ((m = text.match(/^(?:alfred[,\s]+|knect[,\s]+)?(?:lembr[ae](?:-se)?|lembrar|anota(?:r)?|recuerda|apunta|remember|note)\s+(?:que\s+|that\s+|de\s+)?(.+)/i))) {
       var t = m[1].replace(/[.!]+$/, '').trim(), item = { id: 'm' + Date.now(), text: t.charAt(0).toUpperCase() + t.slice(1), at: new Date().toISOString() };
       memory.push(item); saveLocal(); drawMemory();
       if (live()) PK.api.aiRemember(item.text).then(function (r) { if (r && r.id) item.id = r.id; saveLocal(); }).catch(function () {});
-      reply({ reply: 'Pode deixar, vou lembrar: ' + item.text + '.', en: 'Very good. I shall remember that ' + t + '.' }); return true;
+      reply({ reply: 'Pode deixar, vou lembrar: ' + item.text + '.', en: 'Very good. I shall remember that ' + t + '.', es: 'Muy bien, lo recordaré: ' + item.text + '.' }); return true;
     }
-    if (/(o que (voce|você) lembra|what do you remember|o que (voce|você) sabe)/i.test(text)) {
-      reply(memory.length ? { reply: 'Eu lembro que: ' + memory.slice(-5).map(function (x) { return x.text; }).join('; ') + '.', en: 'I recall the following: ' + memory.slice(-5).map(function (x) { return x.text; }).join('; ') + '.' }
-        : { reply: 'Ainda não guardei nada. Diga "lembra que…".', en: 'I have nothing noted as yet. Simply say: remember that…' }); return true;
+    if (/(o que (voce|você) lembra|what do you remember|o que (voce|você) sabe|qu[ée] recuerdas)/i.test(text)) {
+      reply(memory.length ? { reply: 'Eu lembro que: ' + memory.slice(-5).map(function (x) { return x.text; }).join('; ') + '.', en: 'I recall the following: ' + memory.slice(-5).map(function (x) { return x.text; }).join('; ') + '.', es: 'Recuerdo que: ' + memory.slice(-5).map(function (x) { return x.text; }).join('; ') + '.' }
+        : { reply: 'Ainda não guardei nada. Diga "lembra que…".', en: 'I have nothing noted as yet. Simply say: remember that…', es: 'Todavía no guardé nada. Di "recuerda que…".' }); return true;
     }
-    if ((m = text.match(/^(?:esquec[ea]|esqueça|forget)\s+(?:que\s+|that\s+|about\s+|de\s+)?(.+)/i))) {
+    if ((m = text.match(/^(?:esquec[ea]|esqueça|olvida|forget)\s+(?:que\s+|that\s+|about\s+|de\s+)?(.+)/i))) {
       var q = PK.assistant ? PK.assistant.norm(m[1]) : m[1].toLowerCase();
       var hit = memory.filter(function (x) { return (PK.assistant ? PK.assistant.norm(x.text) : x.text.toLowerCase()).indexOf(q.slice(0, 12)) >= 0; })[0];
-      if (hit) { forget(hit.id, true); reply({ reply: 'Esqueci: ' + hit.text + '.', en: 'Consider it forgotten.' }); }
-      else reply({ reply: 'Não encontrei isso na memória.', en: 'I am afraid I have nothing of the sort noted.' });
+      if (hit) { forget(hit.id, true); reply({ reply: 'Esqueci: ' + hit.text + '.', en: 'Consider it forgotten.', es: 'Olvidado: ' + hit.text + '.' }); }
+      else reply({ reply: 'Não encontrei isso na memória.', en: 'I am afraid I have nothing of the sort noted.', es: 'No encontré eso en la memoria.' });
       return true;
     }
     return false;
@@ -628,7 +634,7 @@ PK.jarvis = (function () {
     if (PK.assistant && PK.assistant.canListen()) {
       state('listen'); fakeLevel(true);
       PK.assistant.listen({
-        lang: PK.settings.get('ai.listenLang') || 'pt-BR',
+        lang: listenLang(),
         onPartial: function (t) { el.querySelector('.al-heard').textContent = '“' + t + '”'; },
         onFinal: function (t) { fakeLevel(false); command(t); },
         onError: function (e) { fakeLevel(false); state('idle', e === 'not-allowed' ? L('Sem permissão para o microfone', 'I’m not permitted to use the microphone') : L('Não ouvi nada — tente de novo', 'I didn’t quite catch that — do try again')); },
@@ -671,7 +677,7 @@ PK.jarvis = (function () {
         if (!heard || !chunks.length) { state('idle', L('Não ouvi nada — tente de novo', 'I didn’t quite catch that — do try again')); return; }
         if (!live()) { state('idle', L('Gravei! Transcrever a voz precisa do PlanKnect conectado', 'Recorded — transcription needs PlanKnect connected')); return; }
         state('think');
-        PK.api.assistantAudio(wav(chunks, rate), 'audio/wav', { lang: lang(), listenLang: PK.settings.get('ai.listenLang') || 'pt-BR', meetingId: meetCtx && meetCtx.id }).then(function (res) {
+        PK.api.assistantAudio(wav(chunks, rate), 'audio/wav', { lang: lang(), listenLang: listenLang(), meetingId: meetCtx && meetCtx.id }).then(function (res) {
           if (res.heard || res.text) el.querySelector('.al-heard').textContent = '“' + (res.heard || res.text) + '”';
           if (opt.applyActions && !(res.needs_confirmation || (res.proposals || []).length)) opt.applyActions(res.actions || []);
           reply(res);

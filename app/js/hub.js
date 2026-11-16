@@ -7,18 +7,21 @@
   var U = PK.util, I = PK.icons, C = PK.config, esc = U.esc, $ = function (id) { return document.getElementById(id); };
   var state = { members: [], events: [], chores: [], lists: [], meals: [], notes: [], photos: [], watch: null, weather: null, settings: {} };
   var COLORS = { meeting: '#a78bfa', task: '#60a5fa', milestone: '#fb923c', event: '#34d399', family: '#ff7a9a', church: '#fbbf24', birthday: '#e879f9' };
-  var tab = 'today', listSel = null, adding = false, showDone = false, undoId = null, recentDone = {}, choreDone = {}, kidShowDone = {};
+  var tab = 'today', listSel = null, adding = false, showDone = false, undoId = null, recentDone = {}, choreDone = {}, kidShowDone = {}, undoChore = null;
   var timers = U.store.get('hubTimers', []), lastTouch = Date.now(), pairT = null, recipe = null;
   var amb = U.store.get('hubAmb', { weather: true, agenda: true, afterMin: 5 });
   if (amb.darkAfterMin == null) amb.darkAfterMin = 45; if (amb.nightDark == null) amb.nightDark = true; if (!amb.saver) amb.saver = 'auto';
   var STAPLES = ['Leite', 'Pão', 'Ovos', 'Banana', 'Café', 'Arroz', 'Feijão', 'Tomate', 'Queijo', 'Manteiga', 'Papel higiênico', 'Detergente'];
   var NOTES = ['Jantar pronto!', 'Já volto', 'Chego em 10 min', 'Hora de dormir', 'Desçam para o café', 'Alguém viu minha chave?'];
+  PK.i18n.bind(STAPLES); PK.i18n.bind(NOTES); // sugestões viram dado no idioma da tela (?lang=)
   var PRESETS = [['Ovo cozido', 9, 'tooth'], ['Chá', 4, 'plate'], ['Massa', 10, 'chef'], ['Arroz', 18, 'chef'], ['Pizza', 12, 'chef'], ['Bolo', 40, 'cake'],
     ['Pipoca', 3, 'sparkle'], ['Banho das crianças', 20, 'users'], ['Tela / TV', 30, 'tv']];
+  PK.i18n.bind(PRESETS, [0]);
   var QUICK = [1, 5, 10, 15, 30, 60];
   var MISSIONS = [['Arrumar a cama', 'bed', 'manhã', 5], ['Escovar os dentes', 'tooth', 'manhã', 2], ['Dever de casa', 'book', 'tarde', 10], ['Guardar os brinquedos', 'toy', 'tarde', 5],
     ['Colocar a mesa', 'plate', 'noite', 5], ['Separar a roupa', 'shirt', 'noite', 3], ['Ler 20 minutos', 'book', 'noite', 5], ['Dar comida ao pet', 'paw', 'manhã', 5],
     ['Levar o lixo', 'trash', 'tarde', 5], ['Arrumar o quarto', 'home', 'tarde', 10], ['Lavar a louça', 'plate', 'noite', 10], ['Praticar instrumento', 'star', 'tarde', 10]];
+  PK.i18n.bind(MISSIONS, [0]);
   var nm = { kid: null, repeat: 'daily', points: null };
   var tf = { when: 'late', who: 'all' };   // filtros da aba Tarefas
 
@@ -632,8 +635,14 @@
     if (a('data-chore')) {
       var c = state.chores.filter(function (x) { return x.id === a('data-chore'); })[0];
       if (c && PK.data.mode() === 'live') {
-        if (c.done) PK.toast('Missão de hoje já feita ⭐');
-        else {
+        if (c.done) { // desmarcar no mesmo dia: segundo toque confirma
+          if (undoChore !== c.id) { undoChore = c.id; setTimeout(function () { if (undoChore === c.id) undoChore = null; }, 4000); PK.toast('Missão feita ⭐ — toque de novo para desmarcar'); }
+          else {
+            undoChore = null; c.done = false; var ku = member(c.member); if (ku && ku.weekLocal) ku.weekLocal -= (+c.points || 0); render();
+            PK.data.setChore(c.id, false).then(function () { PK.toast('Missão desmarcada'); setTimeout(load, 700); })
+              .catch(function (e) { c.done = true; if (ku) ku.weekLocal = (ku.weekLocal || 0) + (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
+          }
+        } else {
           c.done = true; choreDone[c.id] = Date.now(); setTimeout(render, 2600); var k = member(c.member); if (k) k.weekLocal = (k.weekLocal || 0) + (+c.points || 0); render();
           PK.data.setChore(c.id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(load, 700); })
             .catch(function (e) { c.done = false; if (k) k.weekLocal -= (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
@@ -690,7 +699,7 @@
     if (act === 'notes-sheet') sheet('<div class="qa-h">Avisar a família agora<button data-act="sheet-close">' + I.get('x', 26) + '</button></div><div class="qa-grid">' +
       NOTES.map(function (n) { return '<button data-note="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div><div class="qa-foot"><span>Aparece nas TVs e neste display por alguns minutos.</span></div>');
     if (act === 'note-new') { sheet('<div class="qa-h">Novo recado<button data-act="sheet-close">' + I.get('x', 26) + '</button></div><div class="qa-grid">' +
-      NOTES.concat(['Acabou o leite!', 'Reunião até as 18h']).map(function (n) { return '<button data-notetext="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div><div class="qa-foot"><div id="qa-qr"></div><span>Escrever outro? Aponte o celular.</span></div>'); qr('qa-qr', C.baseUrl + '/add?type=note&from=nest-hub', 96); }
+      NOTES.concat([PK.t('Acabou o leite!'), PK.t('Reunião até as 18h')]).map(function (n) { return '<button data-notetext="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div><div class="qa-foot"><div id="qa-qr"></div><span>Escrever outro? Aponte o celular.</span></div>'); qr('qa-qr', C.baseUrl + '/add?type=note&from=nest-hub', 96); }
     if (act === 'phone-add') { sheet('<div class="qa-h">Adicionar pelo celular<button data-act="sheet-close">' + I.get('x', 26) + '</button></div><div class="pa"><div id="pa-qr"></div><div><b>Aponte a câmera</b><span>Abre o PlanKnect para adicionar evento, tarefa, item da lista ou recado. Aparece aqui em segundos.</span></div></div>'); qr('pa-qr', C.baseUrl + '/add?from=nest-hub', 180); }
     if (act === 'sheet-close') closeSheet();
     if (act === 'recipe') openRecipe();

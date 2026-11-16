@@ -88,7 +88,7 @@ PK.normalize = (function () {
       if (tz && tz !== old) { localStorage.setItem('pk.hhTz', tz); if (window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone !== tz && !/[?&]noauto=1/.test(location.search)) setTimeout(function () { location.reload(); }, 300); }
     } catch (e) {}
     b = dedupe(b);
-    var out = personal(b, bundle0(b)), today = localKey(new Date());
+    var out = personal(b, bundle0(b)), today = (b.household && b.household.today) || localKey(new Date());
     // mesmo compromisso para várias pessoas (ex.: "Swimming class" do Wesley e da Lara) → um só, com todos
     var seenEv = {}; out.events = out.events.filter(function (e) {
       if (!e.members.length) return true;
@@ -98,59 +98,20 @@ PK.normalize = (function () {
     });
     out.choresAll = out.chores; // todas (próximos dias também) — a agenda usa
     out.chores = todayChores(out.chores, today); // missões de hoje
-    out.members.forEach(function (m) { if (m.kid) m.weekLocal = weekLocal(m.id, out.chores, today); });
     return out;
   }
-  /* ---------- missões: a ocorrência de hoje + "feita" guardada na TV ----------
-   * O PlanKnect só cria a próxima ocorrência quando um adulto aprova, então uma missão diária fica
-   * presa no dia em que foi enviada. Aqui a missão recorrente aparece todo dia em que ela vale
-   * (frequência, dias da semana, início/fim), e o que a criança fez hoje fica marcado na TV. */
-  var choreIdx = {};
-  function choreDone() { try { return JSON.parse(localStorage.getItem('pk.choreDone') || '{}') || {}; } catch (e) { return {}; } }
-  function choreSave(dm) {
-    var keys = Object.keys(dm).sort(); while (keys.length > 21) delete dm[keys.shift()];
-    try { localStorage.setItem('pk.choreDone', JSON.stringify(dm)); } catch (e) {}
-  }
-  function markChore(id, on) {
-    var dm = choreDone(), t = localKey(new Date()), d = dm[t] = dm[t] || {}, c = choreIdx[id] || {};
-    if (on) d[id] = { p: +c.points || 0, m: c.member || null }; else delete d[id];
-    choreSave(dm);
-  }
-  function hasDow(wd, dow) { return wd.indexOf(dow) >= 0 || (dow === 0 && wd.indexOf(7) >= 0); }
-  function occursOn(c, day) {
-    var f = String(c.frequency || c.recurrence || '').toLowerCase(), dow = new Date(day + 'T12:00:00').getDay();
-    var wd = (c.weekdays || c.days || []).map(Number);
-    if (c.scheduleStart && String(c.scheduleStart).slice(0, 10) > day) return false;
-    if (c.scheduleEnd && String(c.scheduleEnd).slice(0, 10) < day) return false;
-    if (/dail|diari|every.?day|todo/.test(f)) return !wd.length || hasDow(wd, dow);
-    if (/weekday|util|úteis/.test(f)) return wd.length ? hasDow(wd, dow) : dow >= 1 && dow <= 5;
-    if (/week|seman|custom/.test(f)) return wd.length ? hasDow(wd, dow) : !!c.due && new Date(String(c.due).slice(0, 10) + 'T12:00:00').getDay() === dow;
-    return false;
-  }
+  /* ---------- missões: só as de hoje ----------
+   * O PlanKnect cria a ocorrência de cada dia (job de hora em hora, no fuso da família) e
+   * responde se ela está feita. A tela mostra só as de hoje: nada de missão velha ou perdida.
+   * "Hoje" vem do servidor (household.today); sem ele, a data deste aparelho. */
   function todayChores(list, today) {
-    var mine = choreDone()[today] || {}, fresh = {};
-    list.forEach(function (c) { choreIdx[c.id] = c; if (c.due && String(c.due).slice(0, 10) === today) fresh[(c.title || '') + '|' + c.member] = 1; });
     return list.filter(function (c) {
       var d = c.due ? String(c.due).slice(0, 10) : null;
-      if (d && d > today) return false;
-      if (d && d < today) {
-        if (fresh[(c.title || '') + '|' + c.member]) return false; // o PlanKnect já criou a de hoje
-        if (!occursOn(c, today) && c.sent) return false;          // não vale hoje e já foi feita
-      }
-      var isToday = !d || d === today;
-      c.done = !!mine[c.id] || (isToday && (c.sent || !!c.done));
+      if (d) { if (d !== today) return false; }
+      else if (/^(once|one-time)$/.test(String(c.frequency || '')) && c.sent) return false;
+      c.done = !!(c.sent || c.done);
       return true;
     });
-  }
-  function weekLocal(memberId, todays, today) {
-    // semana de segunda a domingo, igual ao placar do PlanKnect (GET /chores/scores)
-    var now = new Date(), dm = choreDone(), ws = localKey(U.addDays(U.startOfDay(now), -((now.getDay() + 6) % 7))), sum = 0, seen = {};
-    Object.keys(dm).forEach(function (day) {
-      if (day < ws || day > today) return;
-      Object.keys(dm[day]).forEach(function (id) { var e = dm[day][id]; if (e.m === memberId) { sum += +e.p || 0; if (day === today) seen[id] = 1; } });
-    });
-    todays.forEach(function (c) { if (c.member === memberId && c.done && !seen[c.id]) sum += +c.points || 0; });
-    return sum;
   }
   // o PlanKnect manda a mesma cor para todos (#3B82F6): cada pessoa ganha a sua, fixa pelo id
   var MCOL = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee', '#f87171'];
@@ -322,15 +283,15 @@ PK.api = (function () {
     deviceId: deviceId, isLinked: function () { return !!tokens(); },
     startDeviceAuth: startDeviceAuth, pollDeviceAuth: pollDeviceAuth, loginPassword: loginPassword, logout: logout,
     load: load,
-    // a criança marca e já conta (estrelas na hora). O envio vai ao PlanKnect; se a ocorrência
-    // já tinha sido enviada num dia anterior, o servidor recusa o reenvio e a marca de hoje vale mesmo assim
+    // a criança marca (submit) ou desmarca no mesmo dia (undo). O PlanKnect é quem conta os pontos:
+    // se ele recusar, a tela volta atrás e explica — nada fica "feito" só na TV
     setChore: function (id, done) {
-      if (!done) return Promise.reject(new Error('Para desfazer, use o PlanKnect'));
-      markChore(id, true);
-      return req('POST', '/api/tv/chores/' + enc(id), { action: 'submit' }).catch(function (e) {
+      return req('POST', '/api/tv/chores/' + enc(id), { action: done ? 'submit' : 'undo' }).catch(function (e) {
         var m = String(e && e.message || '');
-        if (/unauthorized|HTTP 5|fetch|network|abort|tempo|timeout|falar com/i.test(m)) { markChore(id, false); throw e; }
-        return { ok: true, local: true };
+        if (/not_today|today occurrence/i.test(m)) throw new Error('Essa missão é de outro dia');
+        if (/undo|same-day|approved/i.test(m) && !done) throw new Error('Essa missão não dá mais para desmarcar');
+        if (/chore/i.test(m) && /enable|permission|forbid/i.test(m)) throw new Error('chore permission: ' + m);
+        throw e;
       });
     },
     setListItem: function (listId, itemId, done) { return req('POST', '/api/tv/lists/' + enc(listId) + '/items/' + enc(itemId), { done: done }); },

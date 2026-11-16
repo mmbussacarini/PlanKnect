@@ -890,3 +890,16 @@ body.night #ambient.dark ~ *, body.night .amb-dark { opacity: .8; }
 .mu-next { margin-top: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 17px; color: rgba(255,255,255,.7); }
 .mu-next span { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,.45); }
 .mu-next em { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px; }
+/* "Tocar em": aparelho + botão de dar nome; tela do nome */
+.mu-devrow { display: inline-flex; align-items: stretch; margin: 0 14px 14px 0; }
+.mu-devrow .mu-dev { margin: 0; }
+.mu-devrow .mu-dev:first-child { border-radius: 18px 0 0 18px; }
+.mu-dev.mu-rename { border-radius: 0 18px 18px 0; margin-left: 2px; padding: 18px 18px; color: rgba(255,255,255,.75); }
+.mu-dev.mu-rename b { margin-left: 8px; font-size: 17px; }
+.mu-dev span.mu-noname { color: #fbbf24; }
+.mu-name { display: flex; flex-direction: column; gap: 16px; max-width: 1200px; }
+.mu-name-h { font-size: 30px; }
+.mu-name-s { font-size: 18px; color: rgba(255,255,255,.6); }
+.mu-name-opts, .mu-name-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.mu-name-opts .mu-dev { margin: 0; }
+.mu-name-in { flex: 1; min-width: 420px; font-size: 22px; padding: 14px 18px; border-radius: 14px; border: 0; background: rgba(255,255,255,.1); color: #fff; }

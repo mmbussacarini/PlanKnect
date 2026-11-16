@@ -555,3 +555,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .hk { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); padding-bottom: 28px; }
 .hk-more { display: block; width: 100%; margin-top: 4px; padding: 10px; border-radius: 14px; font-size: 16px; font-weight: 600; color: #c7d2fe; background: rgba(255, 255, 255, .05); border: 1px dashed rgba(199, 210, 254, .35); }
 .hk-c.done { transition: opacity .4s; }
+.mu-devrow { display: inline-flex; align-items: stretch; margin: 0 10px 10px 0; }
+.mu-devrow .mu-dev { margin: 0; } .mu-devrow .mu-dev:first-child { border-radius: 14px 0 0 14px; }
+.mu-dev.mu-rename { border-radius: 0 14px 14px 0; margin-left: 2px; padding: 14px; } .mu-dev.mu-rename b { margin-left: 6px; font-size: 14px; }
+.mu-dev span.mu-noname { color: #fbbf24; }
+.mu-name { display: flex; flex-direction: column; gap: 10px; } .mu-name-h { font-size: 20px; } .mu-name-s { font-size: 13px; opacity: .65; }
+.mu-name-opts, .mu-name-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .mu-name-opts .mu-dev { margin: 0; }
+.mu-name-in { flex: 1; min-width: 200px; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 0; background: rgba(255,255,255,.1); color: #fff; }

@@ -26,7 +26,7 @@ PK.workmode = (function () {
       '<div class="wm-bar"><div class="wm-tl" id="wm-tl"></div><div class="wm-ctl">' +
         '<button class="wm-b focusable" data-wm="pick" data-autofocus>' + I.get('monitor', 28) + '<span><b>Entrada</b><em id="wm-port">HDMI ' + port + '</em></span></button>' +
         '<button class="wm-b focusable" data-wm="full">' + I.get('tv', 28) + '<span><b>Tela cheia</b><em>só o computador</em></span></button>' +
-        '<button class="wm-b focusable" data-wm="alfred"><span class="kn-mini"></span><span><b>Alfred</b><em>falar com ele</em></span></button>' +
+        '<button class="wm-b focusable" data-wm="alfred"><span class="kn-mini"></span><span><b>Knect</b><em>falar com ele</em></span></button>' +
         '<button class="wm-b ghost focusable" data-wm="exit">' + I.get('x', 28) + '<span><b>Sair</b><em>voltar</em></span></button>' +
       '</div></div><div class="wm-pill" id="wm-pill"></div>';
     el.classList.add('active'); el.classList.remove('full');

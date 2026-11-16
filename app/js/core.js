@@ -69,24 +69,26 @@ PK.util = (function () {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
   function weekStart(d) { var x = startOfDay(d); return addDays(x, -x.getDay()); }
-  function longDate(d) { d = D(d); return DAYS[d.getDay()] + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()]; }
-  function shortDate(d) { d = D(d); return d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
+  // datas no idioma do app (js/i18n.js)
+  function longDate(d) { return PK.i18n.longDate(D(d)); }
+  function shortDate(d) { return PK.i18n.shortDate(D(d)); }
   function relMinutes(min) {
-    if (min < 1) return 'agora';
-    if (min < 60) return 'em ' + Math.round(min) + ' min';
+    var t = PK.t;
+    if (min < 1) return t('agora');
+    if (min < 60) return t('em {n} min', { n: Math.round(min) });
     var h = Math.floor(min / 60), m = Math.round(min % 60);
-    if (h >= 24) return 'em ' + Math.round(h / 24) + ' dia' + (h >= 48 ? 's' : '');
-    return 'em ' + h + 'h' + (m ? ' ' + pad(m) : '');
+    if (h >= 24) return h >= 48 ? t('em {n} dias', { n: Math.round(h / 24) }) : t('em {n} dia', { n: 1 });
+    return t('em {h}h{m}', { h: h, m: m ? ' ' + pad(m) : '' });
   }
   function dueLabel(due, now) {
     if (!due) return '';
-    var d0 = startOfDay(now), dd = startOfDay(due);
+    var d0 = startOfDay(now), dd = startOfDay(due), t = PK.t;
     var diff = Math.round((dd - d0) / 86400000);
-    if (diff < -1) return 'atrasada ' + (-diff) + ' dias';
-    if (diff === -1) return 'atrasada desde ontem';
-    if (diff === 0) return 'hoje';
-    if (diff === 1) return 'amanhã';
-    if (diff < 7) return DAYS[due.getDay()].toLowerCase();
+    if (diff < -1) return t('atrasada {n} dias', { n: -diff });
+    if (diff === -1) return t('atrasada desde ontem');
+    if (diff === 0) return t('hoje');
+    if (diff === 1) return t('amanhã');
+    if (diff < 7) return PK.i18n.lang() === 'en' ? DAYS[due.getDay()] : DAYS[due.getDay()].toLowerCase();
     return shortDate(due);
   }
   function toDate(v) { return v instanceof Date ? v : (v ? new Date(v) : null); }
@@ -107,6 +109,7 @@ PK.util = (function () {
     toDate: toDate, uid: uid, store: store
   };
 })();
+PK.i18n.setDates();
 
 /* ---------------- ícones (SVG em linha, herdam currentColor) ---------------- */
 PK.icons = (function () {
@@ -180,6 +183,7 @@ PK.icons = (function () {
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     chef: '<path d="M7 14.5V20h10v-5.5M7 14.5A4 4 0 0 1 6.5 6.6 5 5 0 0 1 12 3.5a5 5 0 0 1 5.5 3.1 4 4 0 0 1-.5 7.9zM7 17h10"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
     sun2: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2"/>'
   };
   function get(name, size, extra) { return svg(P[name] || P.task, size, extra); }
@@ -199,7 +203,7 @@ PK.icons = (function () {
       51: 'Chuvisco', 53: 'Chuvisco', 55: 'Chuvisco forte', 61: 'Chuva fraca', 63: 'Chuva', 65: 'Chuva forte',
       66: 'Chuva gelada', 67: 'Chuva gelada', 71: 'Neve fraca', 73: 'Neve', 75: 'Neve forte', 80: 'Pancadas de chuva',
       81: 'Pancadas de chuva', 82: 'Temporal', 95: 'Trovoadas', 96: 'Trovoadas', 99: 'Trovoadas' };
-    return T[code] || 'Nublado';
+    return PK.t(T[code] || 'Nublado');
   }
   return { get: get, weather: weather, weatherText: weatherText };
 })();
@@ -410,11 +414,12 @@ PK.updater = (function () {
 PK.writeErr = function (e) {
   var m = (e && e.message) || '';
   var where = ' para esta TV em planknect.com › Configurações › Dispositivos';
+  if (/^Essa missão/.test(m)) return m;
   if (/note/i.test(m) && /edit|writ|enable|forbid|permission/i.test(m)) return 'Ative “Escrever recados”' + where;
   if (/chore/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar missões”' + where;
   if (/(list|shopping)/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar listas”' + where;
   if (/task/i.test(m) && /edit|enable|forbid|permission/i.test(m)) return 'Ative “Editar tarefas”' + where;
-  if (/memory/i.test(m)) return 'Ative a memória do Alfred' + where;
+  if (/memory/i.test(m)) return 'Ative a memória do Knect' + where;
   if (/forbidden|403/i.test(m)) return 'Esta TV não tem permissão para isso — veja Ajustes › “O que esta TV pode ver e fazer”';
   if (/not_found|404|HTTP 405/.test(m)) return 'Ainda não disponível no PlanKnect';
   if (/unauthorized/.test(m)) return 'Sessão expirada — conecte a TV de novo';

@@ -73,7 +73,7 @@ PK.world = (function () {
       var p = parts(c.tz), off = offsetMin(c.tz), day = isDay(c, s), w = c.home ? null : wx[c.name];
       if (!c.home && !w) load(c, function () {});
       return '<div class="wo-c focusable' + (day ? ' day' : ' night') + (c.home ? ' home' : '') + '"><div class="wo-n">' + (c.home ? I.get('home', 22) + ' ' : '') + esc(c.name) + '</div>' +
-        '<div class="wo-t" data-wotz="' + esc(c.tz) + '">' + U.pad(p.h) + ':' + U.pad(p.m) + '</div><div class="wo-d">' + (WD[p.wd] || p.wd) + ' ' + p.day + ' · ' + (c.home ? 'aqui' : (off === 0 ? 'mesma hora' : (off > 0 ? '+' : '−') + Math.floor(Math.abs(off) / 60) + 'h' + (Math.abs(off) % 60 ? U.pad(Math.abs(off) % 60) : ''))) + '</div>' +
+        '<div class="wo-t" data-wotz="' + esc(c.tz) + '">' + U.pad(p.h) + ':' + U.pad(p.m) + '</div><div class="wo-d">' + PK.t(WD[p.wd] || p.wd) + ' ' + p.day + ' · ' + (c.home ? 'aqui' : (off === 0 ? 'mesma hora' : (off > 0 ? '+' : '−') + Math.floor(Math.abs(off) / 60) + 'h' + (Math.abs(off) % 60 ? U.pad(Math.abs(off) % 60) : ''))) + '</div>' +
         '<div class="wo-s">' + I.get(day ? 'sun' : 'moon', 26) + (w ? ' ' + w.temp + '° · ' + I.weatherText(w.code) : (day ? ' dia' : ' noite')) + '</div></div>';
     }).join('') + '</div>';
   }

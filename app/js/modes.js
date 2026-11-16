@@ -135,7 +135,7 @@ PK.modes = (function () {
         '<button class="rm-b focusable" data-rm="work"' + (e && e.video && PK.computer.on() ? '' : ' data-autofocus') + '>' + I.get('monitor', 30) + '<span><b>Computador na TV</b><em>HDMI numa janela com o PlanKnect em volta</em></span></button>' +
         '<button class="rm-b focusable" data-rm="backdrop">' + I.get('sparkle', 30) + '<span><b>Fundo para câmera</b><em>Cenário bonito atrás de você</em></span></button>' +
         '<button class="rm-b focusable" data-rm="onair">' + I.get('moon', 30) + '<span><b>Aviso para a família</b><em>“Em reunião” com tempo restante</em></span></button>' +
-        (e ? '<button class="rm-b ask focusable" data-rm="ask"><span class="kn-mini"></span><span><b>Perguntar à reunião</b><em>Alfred usa a transcrição</em></span></button>' : '') +
+        (e ? '<button class="rm-b ask focusable" data-rm="ask"><span class="kn-mini"></span><span><b>Perguntar à reunião</b><em>Knect usa a transcrição</em></span></button>' : '') +
         (e ? '<button class="rm-b focusable" data-rm="detail">' + I.get('calendar', 30) + '<span><b>Detalhes</b><em>Pauta, anexos e gravação</em></span></button>' : '') +
         '<button class="rm-b ghost focusable" data-rm="exit">' + I.get('x', 30) + '<span><b>Sair</b><em>Voltar ao PlanKnect</em></span></button></div>' +
       (today.length ? '<div class="rm-day">' + today.map(function (x) { var live = x.start <= now && x.end > now, past = x.end <= now; return '<span class="' + (live ? 'live' : past ? 'past' : '') + '"><b>' + U.hm(x.start) + '</b>' + esc(x.private ? 'Ocupado' : x.title) + '</span>'; }).join('') + '</div>' : '') +

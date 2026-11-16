@@ -17,7 +17,7 @@ PK.music = (function () {
     { title: 'Golden Hour', artist: 'JVKE', album: 'this is what ____ feels like', image: '', duration_ms: 209000 },
     { title: 'Garota de Ipanema', artist: 'Tom Jobim', album: 'Getz/Gilberto', image: '', duration_ms: 324000 }
   ];
-  var DEMO_D = [{ id: 'd-tv', name: 'Samsung TV da sala', type: 'TV' }, { id: 'd-nest', name: 'Kitchen Display', type: 'CastAudio' }, { id: 'd-mac', name: 'MacBook', type: 'Computer' }];
+  var DEMO_D = [{ id: 'd-tv', name: 'Samsung TV da sala', type: 'TV' }, { id: 'd-nest', name: 'Kitchen Display', type: 'CastAudio' }, { id: 'd-mac', name: 'MacBook', type: 'Computer' }, { id: 'a3f9c2e17b4d58e6a0c9f1b2d3e4f5a6b7c8d9e0', name: 'a3f9c2e17b4d58e6a0c9f1b2d3e4f5a6b7c8d9e0', type: 'Speaker' }];   // a última: caixa que o Spotify manda sem nome
   var DEMO_P = [{ uri: 'demo:familia', name: 'Família no carro', owner: 'Você' }, { uri: 'demo:jantar', name: 'Jantar tranquilo', owner: 'Você' }, { uri: 'demo:kids', name: 'Músicas das crianças', owner: 'Você' }, { uri: 'demo:foco', name: 'Foco no trabalho', owner: 'Spotify' }];
   var demo = { i: 0, playing: true, started: Date.now(), offset: 40000, dev: 0, vol: 45, ctx: 'Família no carro' };
   function demoNow() {
@@ -79,6 +79,38 @@ PK.music = (function () {
   function recents() { return (live() ? api('GET', '/recent').then(function (r) { return r.tracks || []; }) : Promise.resolve(DEMO_R)).then(function (l) { var seen = {}; recent = l.filter(function (x) { if (seen[x.uri]) return false; seen[x.uri] = 1; return true; }); return recent; }, function (e) { err = why(e); recent = []; return []; }); }
   function playlists() { return (live() ? api('GET', '/playlists').then(function (r) { return r.playlists || r || []; }) : Promise.resolve(DEMO_P)).then(function (p) { lists = p; return p; }, function (e) { err = why(e); lists = []; return []; }); }
 
+  /* ---------- nomes dos aparelhos ----------
+   * O Spotify às vezes manda só um código no lugar do nome (caixas Google/Nest). A tela nunca mostra o código:
+   * mostra o tipo ("Caixa de som 1") e deixa você dar um nome, que fica guardado nesta tela. */
+  var NK = 'pk.musicNames', ROOMS = ['Cozinha', 'Sala', 'TV da sala', 'Quarto', 'Quarto do casal', 'Quarto das crianças', 'Escritório', 'Nest Hub da cozinha', 'Google Home Mini', 'Soundbar'];
+  var naming = null;   // id do aparelho que está ganhando nome
+  function names() { try { return JSON.parse(localStorage.getItem(NK) || '{}') || {}; } catch (e) { return {}; } }
+  function setName(id, n) { var m = names(); n = String(n || '').trim(); if (n) m[id] = n.slice(0, 40); else delete m[id]; try { localStorage.setItem(NK, JSON.stringify(m)); } catch (e) {} }
+  function coded(d) { var n = String((d && d.name) || ''); return !n || n === d.id || /^[0-9a-f]{20,}$/i.test(n); }
+  function kindName(t) { return /tv/i.test(t || '') ? 'TV' : /comp/i.test(t || '') ? 'Computador' : /phone/i.test(t || '') ? 'Celular' : 'Caixa de som'; }
+  function devOf(id) { return (devs || []).filter(function (x) { return x.id === id; })[0]; }
+  function devName(d) {
+    if (!d) return 'Spotify';
+    var c = names()[d.id]; if (c) return c;
+    var full = devOf(d.id) || d; if (!coded(full)) return full.name;
+    // sem nome: tipo + número entre os sem nome do mesmo tipo (estável: pela ordem do código)
+    var k = kindName(full.type), same = (devs || [full]).filter(function (x) { return coded(x) && !names()[x.id] && kindName(x.type) === k; }).map(function (x) { return x.id; }).sort();
+    var i = same.indexOf(d.id);
+    return k + (same.length > 1 && i >= 0 ? ' ' + (i + 1) : '');
+  }
+  function nameBody(compact) {
+    var d = devOf(naming) || { id: naming, name: '' }, cur = names()[naming] || '';
+    var taken = names(), opts = ROOMS.filter(function (r) { return !Object.keys(taken).some(function (id) { return id !== naming && taken[id] === r; }); });
+    return '<div class="mu-name"><b class="mu-name-h">Que aparelho é “' + esc(devName(d)) + '”?</b>' +
+      '<span class="mu-name-s">' + (now && now.device && now.device.id === naming ? 'A música está tocando nele agora: ouça de onde vem o som e escolha o nome.' : 'Toque “Tocar nele para ouvir” e veja de onde vem o som.') + '</span>' +
+      '<div class="mu-name-opts">' + (now && now.device && now.device.id === naming ? '' : '<button class="mu-dev focusable" data-mu="hear:' + esc(naming) + '" data-autofocus>' + I.get('speaker', 24) + '<b>Tocar nele para ouvir</b></button>') +
+      opts.slice(0, compact ? 6 : 10).map(function (r, i) { return '<button class="chip focusable' + (cur === r ? ' on' : '') + '" data-mu="setname:' + esc(r) + '"' + (i === 0 && now && now.device && now.device.id === naming ? ' data-autofocus' : '') + '>' + esc(r) + '</button>'; }).join('') + '</div>' +
+      '<div class="mu-name-row"><input class="mu-name-in focusable" id="mu-name-in" type="text" maxlength="40" placeholder="Ou escreva o nome (teclado da TV)…" value="' + esc(ROOMS.indexOf(cur) < 0 ? cur : '') + '">' +
+      '<button class="chip focusable" data-mu="setname:">' + I.get('check', 18) + ' Salvar</button></div>' +
+      '<div class="mu-name-row">' + (cur ? '<button class="chip focusable" data-mu="clearname">Tirar o nome</button>' : '') + '<button class="chip focusable" data-mu="pane:devs">Voltar</button></div>' +
+      '<span class="mu-name-s">O nome fica guardado nesta tela.</span></div>';
+  }
+
   /* ---------- polling: 5 s com o player aberto, 20 s no resto ---------- */
   function start() {
     if (pollT) return;
@@ -130,11 +162,15 @@ PK.music = (function () {
       if (!recent) { recents().then(rerender); body = '<div class="mu-wait">Carregando…</div>'; }
       else body = '<div class="mu-rec">' + recent.slice(0, compact ? 5 : 8).map(function (r, i) {
         return '<button class="mu-r focusable" data-mu="track:' + esc(r.uri) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + cover(r, compact ? 40 : 56) + '<div><b>' + esc(r.title) + '</b><span>' + esc(r.artist) + '</span></div></button>'; }).join('') + (recent.length ? '' : '<div class="mu-wait">Nada recente.</div>') + '</div>';
+    } else if (pane === 'name' && naming) {
+      body = nameBody(compact);
     } else if (pane === 'devs') {
       if (!devs) { devices().then(rerender); body = '<div class="mu-wait">Procurando aparelhos…</div>'; }
       else body = '<div class="mu-devs">' + devs.map(function (d, i) {
         var on = now && now.device && now.device.id === d.id;
-        return '<button class="mu-dev focusable' + (on ? ' on' : '') + '" data-mu="transfer:' + esc(d.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + I.get(/tv/i.test(d.type) ? 'tv' : /comp/i.test(d.type) ? 'monitor' : 'speaker', 26) + '<b>' + esc(d.name) + '</b>' + (on ? '<span>tocando aqui</span>' : '') + '</button>'; }).join('') +
+        var unnamed = coded(d) && !names()[d.id];
+        return '<span class="mu-devrow"><button class="mu-dev focusable' + (on ? ' on' : '') + '" data-mu="transfer:' + esc(d.id) + '"' + (i === 0 ? ' data-autofocus' : '') + '>' + I.get(/tv/i.test(d.type) ? 'tv' : /comp/i.test(d.type) ? 'monitor' : 'speaker', 26) + '<b>' + esc(devName(d)) + '</b>' + (on ? '<span>tocando aqui</span>' : unnamed ? '<span class="mu-noname">sem nome</span>' : '') + '</button>' +
+          '<button class="mu-dev mu-rename focusable" data-mu="name:' + esc(d.id) + '" aria-label="Dar nome">' + I.get('note', 20) + (unnamed ? '<b>Dar nome</b>' : '') + '</button></span>'; }).join('') +
         (devs.length ? '' : '<div class="mu-wait">Nenhum aparelho com Spotify aberto agora. Abra o Spotify na TV, no celular ou no computador — ele aparece aqui.</div>') +
         (PK.tv && (PK.tv.isTizen || PK.tv.isWebOS) ? '<button class="mu-dev focusable" data-mu="openapp">' + I.get('tv', 26) + '<b>Abrir o Spotify desta TV</b></button>' : '') +
         '<button class="mu-dev focusable" data-mu="pane:devs">' + I.get('refresh', 26) + '<b>Procurar de novo</b></button></div>';
@@ -143,11 +179,11 @@ PK.music = (function () {
           '<div class="mu-prog"><i style="width:' + (100 * progress() / (t.duration_ms || 1)) + '%"></i></div><div class="mu-times"><span id="mu-pos">' + mmss(progress()) + '</span><span>' + mmss(t.duration_ms) + '</span></div>' +
           '<div class="mu-ctl"><button class="focusable" data-mu="previous">' + I.get('prev', ic) + '</button><button class="focusable mu-pp" data-mu="toggle" data-autofocus>' + I.get(now.playing ? 'pause' : 'play', ic + 8) + '</button><button class="focusable" data-mu="next">' + I.get('next', ic) + '</button>' +
           '<button class="focusable mu-vol" data-mu="vol:-10">' + I.get('minus', compact ? 22 : 28) + '</button><span class="mu-v">' + ((now.device && now.device.volume != null) ? now.device.volume + '%' : '') + '</span><button class="focusable mu-vol" data-mu="vol:10">' + I.get('plus', compact ? 22 : 28) + '</button></div>' +
-          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc((now.device && now.device.name) || 'Spotify') + (now.demo ? ' · <em class="mu-demo">DEMONSTRAÇÃO — sem Spotify</em>' : '') + '</div>' + (compact ? '' : upNext(t)) + '</div></div>'
+          '<div class="mu-where">' + I.get('speaker', 18) + ' ' + esc(devName(now.device)) + (now.demo ? ' · <em class="mu-demo">DEMONSTRAÇÃO — sem Spotify</em>' : '') + '</div>' + (compact ? '' : upNext(t)) + '</div></div>'
         : (err ? '<div class="mu-empty off">' + I.get('music', 64) + '<b>Spotify ainda não está conectado</b><span>' + esc(err) + '</span>' +
             '<ol class="mu-steps"><li>O PlanKnect precisa ganhar a integração com o Spotify (pedido enviado ao Lovable).</li><li>Depois: PlanKnect › Integrações › Spotify › Conectar (conta Premium).</li><li>Ative “Música” para esta tela em PlanKnect › Dispositivos.</li></ol>' +
             '<button class="focusable" data-mu="retry" data-autofocus>' + I.get('refresh', 22) + ' Tentar de novo</button></div>'
-          : '<div class="mu-empty">' + I.get('music', 64) + '<b>Nada tocando agora</b><span>Escolha uma playlist ou diga “Alfred, toca a playlist da família”.</span><button class="focusable" data-mu="pane:lists" data-autofocus>' + I.get('list', 22) + ' Ver playlists</button></div>');
+          : '<div class="mu-empty">' + I.get('music', 64) + '<b>Nada tocando agora</b><span>Escolha uma playlist ou diga “Knect, toca a playlist da família”.</span><button class="focusable" data-mu="pane:lists" data-autofocus>' + I.get('list', 22) + ' Ver playlists</button></div>');
     }
     return '<div class="mu-player' + (compact ? ' compact' : '') + '">' + head + (err && t ? '<div class="mu-err">' + esc(err) + '</div>' : '') + body + '</div>';
   }
@@ -178,6 +214,13 @@ PK.music = (function () {
     if (k === 'vol') { var cur = (now && now.device && now.device.volume) || 50; return control('volume', Math.max(0, Math.min(100, cur + (+v)))); }
     if (k === 'playlist') { pane = 'now'; return control('playlist', v).then(rerender, function () { if (/aparelho/.test(err)) { pane = 'devs'; devs = null; } rerender(); }); }
     if (k === 'transfer') { pane = 'now'; return control('transfer', v).then(rerender, rerender); }
+    if (k === 'name') { naming = v; pane = 'name'; rerender(); return; }
+    if (k === 'hear') { return control('transfer', v).then(rerender, rerender); }   // fica na tela do nome
+    if (k === 'setname' || k === 'clearname') {
+      var inp = document.getElementById('mu-name-in'), n = k === 'clearname' ? '' : (v || (inp && inp.value) || '');
+      if (k === 'setname' && !n.trim()) { PK.toast('Escolha ou escreva um nome'); return; }
+      setName(naming, n); PK.toast(n ? 'Nome salvo: ' + n : 'Nome tirado'); naming = null; pane = 'devs'; rerender(); return;
+    }
     return control(k);
   }
 

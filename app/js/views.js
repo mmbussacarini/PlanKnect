@@ -418,7 +418,7 @@ PK.views = (function () {
     if (!d) return '';
     var diff = Math.round((U.startOfDay(d) - U.startOfDay(now)) / 86400000);
     if (diff === 0) return 'hoje'; if (diff === -1) return 'ontem'; if (diff === 1) return 'amanhã';
-    if (diff < 0 && diff > -7) return U.DAYS[d.getDay()].toLowerCase(); if (diff > 0 && diff < 7) return U.DAYS[d.getDay()].toLowerCase();
+    if (diff < 0 && diff > -7) return PK.i18n.lang() === 'en' ? U.DAYS[d.getDay()] : U.DAYS[d.getDay()].toLowerCase(); if (diff > 0 && diff < 7) return PK.i18n.lang() === 'en' ? U.DAYS[d.getDay()] : U.DAYS[d.getDay()].toLowerCase();
     return U.shortDate(d);
   }
   function poster(w, now, cls) {

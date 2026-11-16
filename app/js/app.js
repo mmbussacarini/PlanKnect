@@ -261,6 +261,12 @@
     if (!first) setTimeout(PK.nav.reset, 20);
   }
   PK.app.refresh = function () { refreshData(); };
+  // idioma trocado em Ajustes: os textos fixos já foram traduzidos (js/i18n.js); refaz o que tem data/hora montada
+  PK.i18n.onChange(function () {
+    if (!$('screen-main').classList.contains('active')) return;
+    render(); $('top-clock').textContent = U.hm(new Date());
+    PK.routine.render(state);
+  });
   PK.app.ui = function () { return ui; };
   PK.app.refreshView = function (v) { if (ui.view === v) render(); };
   PK.app.openModal = openModal; PK.app.fillModal = fillModal; PK.app.qr = function (id, t, s) { qr(id, t, s); };
@@ -302,8 +308,8 @@
     'alerts.meetingLeadMin': [[2, '2 min'], [5, '5 min'], [10, '10 min'], [15, '15 min']],
     'alerts.snoozeMin': [[1, '1 min'], [2, '2 min'], [5, '5 min']],
     'ai.voice': [[true, 'Ligado'], [false, 'Desligado']],
-    'ai.lang': [['en-GB', 'English — sotaque britânico'], ['pt-BR', 'Português']],
-    'ai.listenLang': [['pt-BR', 'Português'], ['en-GB', 'English']],
+    'ai.lang': [['auto', 'Mesmo idioma do app'], ['en-GB', 'English — sotaque britânico'], ['pt-BR', 'Português'], ['es-ES', 'Español']],
+    'ai.listenLang': [['auto', 'Mesmo idioma do app'], ['pt-BR', 'Português'], ['en-GB', 'English'], ['es-ES', 'Español']],
     'ai.planknectVoice': [[true, 'PlanKnect (natural)'], [false, 'Voz da TV']],
     'ai.particles': [[true, 'Partículas 3D'], [false, 'Simples (TV mais leve)']],
     'home.extra': [['note', 'Recado'], ['world', 'Relógio mundial'], ['sun', 'Pôr / nascer do sol']],
@@ -312,13 +318,14 @@
     'ambient.agenda': [[true, 'Sim'], [false, 'Não']]
   };
   function opts(key) {
+    if (key === 'lang') return PK.i18n.LANGS.map(function (l) { return [l, PK.i18n.NAMES[l]]; });
     if (key === 'meeting.scene') return sceneOpts([]);
     if (key === 'ai.scene') return sceneOpts([['none', 'Sem foto (só o orbe)']]);
     if (key === 'home.scene' || key === 'ambient.scene') return sceneOpts([['auto', 'Automático (hora e clima)']].concat(key === 'home.scene' ? [['dark', 'Escuro, sem foto']] : []));
     return OPTS[key];
   }
   function optLabel(key) {
-    var v = S.get(key), o = opts(key).filter(function (x) { return x[0] === v; })[0];
+    var v = key === 'lang' ? PK.i18n.lang() : S.get(key), o = opts(key).filter(function (x) { return x[0] === v; })[0];
     return o ? o[1] : String(v);
   }
   function settingsBody() {
@@ -327,7 +334,9 @@
       return '<div class="set-row focusable" ' + attr + '><span class="set-ic">' + I.get(icon, 28) + '</span><div class="set-main"><div class="set-l">' + label + '</div>' +
         (hint ? '<div class="set-h">' + hint + '</div>' : '') + '</div><div class="set-v">' + value + '</div></div>';
     }
-    return '<div class="set-group">Conexão</div>' +
+    return '<div class="set-group">Idioma</div>' +
+      row('Idioma do app', '<span translate="no">' + optLabel('lang') + '</span>', 'data-set="lang"', 'globe', 'Português · English · Español — OK para trocar') +
+      '<div class="set-group">Conexão</div>' +
       row(live ? 'Conectada ao PlanKnect' : 'Modo demonstração', live ? 'Desconectar' : 'Conectar', 'data-act="link" data-autofocus', 'tv', (state.household && state.household.name) || '') +
       row('Atualizar agora', state.fetchedAt ? 'última ' + U.hm(state.fetchedAt) : '—', 'data-act="refresh"', 'refresh') +
       (live ? (function () {
@@ -352,15 +361,15 @@
       '<div class="set-group">Rotinas</div>' +
       row('Rotina da manhã', (C.routines.morning.start + '–' + C.routines.morning.until), 'data-act="routine-morning"', 'sun2', 'Abrir agora · ' + U.esc(C.routines.morning.label)) +
       row('Rotina da noite', (C.routines.bedtime.start + '–' + C.routines.bedtime.until), 'data-act="routine-bedtime"', 'moon', 'Abrir agora · ' + U.esc(C.routines.bedtime.label)) +
-      '<div class="set-group">Alfred</div>' +
-      row('Abrir o Alfred agora', '▶', 'data-act="knect"', 'sparkle', 'Também abre sozinho de manhã (6h–11h) e à noite (18h–21h)') +
-      row('Alfred fala em voz alta', optLabel('ai.voice'), 'data-set="ai.voice"', 'mic') +
-      row('Alfred responde em', optLabel('ai.lang'), 'data-set="ai.lang"', 'sparkle', 'Voz britânica, educada e simpática') +
-      row('Você fala com o Alfred em', optLabel('ai.listenLang'), 'data-set="ai.listenLang"', 'mic') +
-      row('Voz do Alfred', optLabel('ai.planknectVoice'), 'data-set="ai.planknectVoice"', 'sparkle', 'PlanKnect: a mesma voz natural do site · cai na voz da TV se não houver') +
-      row('Visual do Alfred', optLabel('ai.particles'), 'data-set="ai.particles"', 'sparkle') +
-      row('Fundo do Alfred', optLabel('ai.scene'), 'data-set="ai.scene"', 'home', 'Foto ou vídeo atrás do Alfred') +
-      row('Testar voz do Alfred', '▶', 'data-act="voice-test"', 'play', 'Fala uma frase e mostra o resultado') +
+      '<div class="set-group">Knect</div>' +
+      row('Abrir o Knect agora', '▶', 'data-act="knect"', 'sparkle', 'Também abre sozinho de manhã (6h–11h) e à noite (18h–21h)') +
+      row('Knect fala em voz alta', optLabel('ai.voice'), 'data-set="ai.voice"', 'mic') +
+      row('Knect responde em', optLabel('ai.lang'), 'data-set="ai.lang"', 'sparkle', 'Em inglês: voz britânica, educada e simpática') +
+      row('Você fala com o Knect em', optLabel('ai.listenLang'), 'data-set="ai.listenLang"', 'mic') +
+      row('Voz do Knect', optLabel('ai.planknectVoice'), 'data-set="ai.planknectVoice"', 'sparkle', 'PlanKnect: a mesma voz natural do site · cai na voz da TV se não houver') +
+      row('Visual do Knect', optLabel('ai.particles'), 'data-set="ai.particles"', 'sparkle') +
+      row('Fundo do Knect', optLabel('ai.scene'), 'data-set="ai.scene"', 'home', 'Foto ou vídeo atrás do Knect') +
+      row('Testar voz do Knect', '▶', 'data-act="voice-test"', 'play', 'Fala uma frase e mostra o resultado') +
       '<div class="set-group">Computador na TV</div>' +
       row('Computador está no', optLabel('work.hdmi'), 'data-set="work.hdmi"', 'monitor', 'Entrada HDMI usada no modo Computador') +
       row('Abrir o modo Computador', '▶', 'data-act="workmode"', 'briefcase', 'HDMI numa janela com o PlanKnect em volta') +
@@ -383,8 +392,9 @@
   }
   function openSettings() { openModal({ title: I.get('gear', 40) + ' Ajustes', body: settingsBody(), actions: [{ label: 'Fechar', act: 'close', ghost: true }] }, 'settings'); }
   function cycleSetting(el) {
-    var key = el.getAttribute('data-set'), o = opts(key), v = S.get(key);
+    var key = el.getAttribute('data-set'), o = opts(key), v = key === 'lang' ? PK.i18n.lang() : S.get(key);
     var i = 0; o.forEach(function (x, j) { if (x[0] === v) i = j; });
+    if (key === 'lang') { PK.i18n.set(o[(i + 1) % o.length][0]); el.querySelector('.set-v').innerHTML = '<span translate="no">' + optLabel(key) + '</span>'; return; }
     S.set(key, o[(i + 1) % o.length][0]);
     el.querySelector('.set-v').textContent = optLabel(key);
     if (key === 'home.scene') mountHomeBg(true);
@@ -514,9 +524,10 @@
     if (act === 'workmode') { while (closeOverlay()) {} PK.workmode.open(function () { return state; }); }
     if (act === 'refresh') { closeOverlay(); refreshData(); refreshWeather(); PK.toast('Atualizando…'); }
     if (act === 'voice-test') {
-      PK.voice.reset(); PK.toast('Alfred vai falar…');
+      PK.voice.reset(); PK.toast('Knect vai falar…');
       var vt0 = PK.voice.debug().played;
-      PK.voice.speak('Good evening. This is Alfred, testing the voice.', PK.settings.get('ai.lang') || 'en-GB', { silent: function () { PK.toast('Sem voz: o aparelho não tem voz própria e a do PlanKnect falhou'); } });
+      var vl = PK.settings.get('ai.lang'); vl = !vl || vl === 'auto' ? PK.i18n.speech() : vl;
+      PK.voice.speak({ pt: 'Boa noite. Aqui é o Knect, testando a voz.', en: 'Good evening. This is Knect, testing the voice.', es: 'Buenas noches. Soy Knect, probando la voz.' }[vl.slice(0, 2)] || 'Good evening. This is Knect, testing the voice.', vl, { silent: function () { PK.toast('Sem voz: o aparelho não tem voz própria e a do PlanKnect falhou'); } });
       setTimeout(function () { var d = PK.voice.debug(); PK.toast((d.played > vt0 ? '✓ Áudio tocou' : '✗ Não tocou') + ' · voz ' + (d.cloud ? 'PlanKnect' : 'da TV') + (d.lastErr ? ' · ' + U.esc(d.lastErr) : ''), 8000); }, 7000);
       return;
     }
@@ -692,11 +703,18 @@
     var bar = box.querySelector('.bar.sub i'); if (bar) bar.style.width = Math.round(dn / all.length * 100) + '%';
     PK.data.setSubtask(p[0], p[1], done).catch(function () { el.classList.toggle('done', !done); PK.toast('Não consegui salvar'); });
   }
+  var undoAsk = null;
   function toggleChore(el) {
     var id = el.getAttribute('data-chore');
     var c = state.chores.filter(function (x) { return x.id === id; })[0]; if (!c) return;
     var live = PK.data.mode() === 'live';
-    if (live && c.done) { PK.toast('Missão de hoje já feita ⭐'); return; }
+    if (live && c.done) { // desmarcar: só no mesmo dia, e com um segundo OK (criança não desfaz sem querer)
+      if (undoAsk !== id) { undoAsk = id; setTimeout(function () { if (undoAsk === id) undoAsk = null; }, 4000); PK.toast('Missão feita ⭐ — aperte OK de novo para desmarcar'); return; }
+      undoAsk = null; c.done = false; el.classList.remove('done', 'pop');
+      PK.data.setChore(id, false).then(function () { PK.toast('Missão desmarcada'); setTimeout(refreshData, 700); })
+        .catch(function (e) { c.done = true; el.classList.add('done'); PK.toast(PK.writeErr(e)); });
+      return;
+    }
     if (live) { // feita na hora: estrelas contam já (sem esperar aprovação)
       c.done = true; el.classList.add('done', 'pop'); confetti(el, 30);
       PK.data.setChore(id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(refreshData, 700); })

@@ -65,11 +65,12 @@ PK.deals = (function () {
     return loading;
   }
   function money(v, cur) {
-    var s = v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', ',') + ' mi' : v >= 1e4 ? Math.round(v / 1e3) + ' mil' : String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    var en = PK.i18n.lang() === 'en', dec = en ? '.' : ',', th = en ? ',' : '.'; // 1,5 mi / 1.5M
+    var s = v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace('.', dec) + (en ? 'M' : ' mi') : v >= 1e4 ? Math.round(v / 1e3) + (en ? 'k' : ' mil') : String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, th);
     return ({ USD: 'US$ ', AUD: 'A$ ', EUR: '€ ', BRL: 'R$ ', GBP: '£ ' }[cur] || (cur ? cur + ' ' : '')) + s;
   }
   var PER = { month: '/mês', monthly: '/mês', year: '/ano', yearly: '/ano', annual: '/ano', annually: '/ano', week: '/sem', weekly: '/sem', quarter: '/tri', quarterly: '/tri', one_time: '', once: '', onetime: '' };
-  function per(p) { return p ? (PER[String(p).toLowerCase()] != null ? PER[String(p).toLowerCase()] : '/' + p) : ''; }
+  function per(p) { return p ? (PER[String(p).toLowerCase()] != null ? PK.t(PER[String(p).toLowerCase()]) : '/' + p) : ''; }
   function vals(x) { var v2 = x.values.filter(function (v) { return v.amount; }); return v2.length ? v2.map(function (v) { return money(v.amount, v.currency) + per(v.period); }).join(' + ') : '<span class="dl-nov">sem valor</span>'; }
   var TEMP = { hot: ['Quente', 'hot'], warm: ['Morno', 'warm'], cold: ['Frio', 'cold'] };
   function temp(x) { var t = TEMP[String(x.temperature || '').toLowerCase()]; return t || x.ai != null ? '<span class="dl-temp ' + (t ? t[1] : '') + '">' + (t ? t[0] : 'IA') + (x.ai != null ? ' · ' + Math.round(x.ai) : '') + '</span>' : ''; }

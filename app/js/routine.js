@@ -33,15 +33,15 @@ PK.routine = (function () {
     var w = state.weather, tip = '';
     if (w && morning) {
       var d0 = w.days[0], wet = (d0.rain || 0) >= 50;
-      tip = I.get(I.weather(d0.code, true), 34) + ' ' + w.temp + '° agora, máxima de ' + d0.max + '°. ' + (wet ? d0.rain + '% de chuva — guarda-chuva na mochila.' : d0.max >= 26 ? 'Dia quente — garrafinha de água e protetor.' : d0.min <= 14 ? 'Manhã fria — leve um casaco.' : 'Tempo bom para sair.');
+      tip = I.get(I.weather(d0.code, true), 34) + ' ' + PK.t('{t}° agora, máxima de {m}°.', { t: w.temp, m: d0.max }) + ' ' + (wet ? PK.t('{n}% de chuva — guarda-chuva na mochila.', { n: d0.rain }) : PK.t(d0.max >= 26 ? 'Dia quente — garrafinha de água e protetor.' : d0.min <= 14 ? 'Manhã fria — leve um casaco.' : 'Tempo bom para sair.'));
     }
-    if (w && !morning) { var t1 = w.days[1]; tip = I.get(I.weather(t1.code, true), 34) + ' Amanhã: ' + t1.min + '° a ' + t1.max + '°' + ((t1.rain || 0) >= 50 ? ', ' + t1.rain + '% de chuva.' : '.'); }
+    if (w && !morning) { var t1 = w.days[1]; tip = I.get(I.weather(t1.code, true), 34) + ' ' + ((t1.rain || 0) >= 50 ? PK.t('Amanhã: {a}° a {b}°, {n}% de chuva.', { a: t1.min, b: t1.max, n: t1.rain }) : PK.t('Amanhã: {a}° a {b}°.', { a: t1.min, b: t1.max })); }
     var day = morning ? now : U.addDays(now, 1);
     var agenda = state.events.filter(function (e) { return U.sameDay(e.start, day) && !e.allDay && (morning ? e.end > now : true) && !PK.views.TYPE[e.type].work; }).slice(0, 3);
     var mmss = function (ms) { var s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600); return (h ? h + ':' + U.pad(Math.floor(s % 3600 / 60)) : Math.floor(s / 60)) + ':' + U.pad(s % 60); };
     body.innerHTML =
       '<div class="rt-top"><div><div class="rt-hello">' + (morning ? 'Bom dia, turma!' : 'Boa noite, família!') + '</div><div class="rt-clock">' + U.hm(now) + '</div></div>' +
-      '<div class="rt-count' + (left <= 0 ? ' go' : '') + '"><span>' + esc(c.label) + (left > 0 ? ' em' : '') + '</span><b id="rt-left" data-until="' + until.getTime() + '">' + (left > 0 ? mmss(left) : (morning ? 'Hora de sair!' : 'Hora de dormir!')) + '</b></div></div>' +
+      '<div class="rt-count' + (left <= 0 ? ' go' : '') + '"><span>' + esc(PK.t(c.label)) + (left > 0 ? ' ' + PK.t('em') : '') + '</span><b id="rt-left" data-until="' + until.getTime() + '">' + (left > 0 ? mmss(left) : (morning ? 'Hora de sair!' : 'Hora de dormir!')) + '</b></div></div>' +
       (tip ? '<div class="rt-tip">' + tip + '</div>' : '') +
       '<div class="rt-kids" style="grid-template-columns:repeat(' + Math.max(1, kids.length) + ',1fr)">' + kids.map(function (k, ki) {
         var mine = state.chores.filter(function (x) { return x.member === k.id && x.period === period; });
