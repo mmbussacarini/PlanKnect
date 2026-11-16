@@ -709,15 +709,16 @@
     var c = state.chores.filter(function (x) { return x.id === id; })[0]; if (!c) return;
     var live = PK.data.mode() === 'live';
     if (live && c.done) { // desmarcar: só no mesmo dia, e com um segundo OK (criança não desfaz sem querer)
+      if (c.canUndo === false) { PK.toast('Missão de hoje já feita ⭐'); return; }
       if (undoAsk !== id) { undoAsk = id; setTimeout(function () { if (undoAsk === id) undoAsk = null; }, 4000); PK.toast('Missão feita ⭐ — aperte OK de novo para desmarcar'); return; }
       undoAsk = null; c.done = false; el.classList.remove('done', 'pop');
-      PK.data.setChore(id, false).then(function () { PK.toast('Missão desmarcada'); setTimeout(refreshData, 700); })
+      PK.data.setChore(id, false).then(function (r) { PK.views.setWeekPoints(c.familyMemberId, r && r.memberWeekPoints); PK.toast('Missão desmarcada'); setTimeout(refreshData, 700); })
         .catch(function (e) { c.done = true; el.classList.add('done'); PK.toast(PK.writeErr(e)); });
       return;
     }
     if (live) { // feita na hora: estrelas contam já (sem esperar aprovação)
       c.done = true; el.classList.add('done', 'pop'); confetti(el, 30);
-      PK.data.setChore(id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(refreshData, 700); })
+      PK.data.setChore(id, true).then(function (r) { PK.views.setWeekPoints(c.familyMemberId, r && r.memberWeekPoints); PK.toast((r && /submit/.test(r.approvalStatus || '')) ? 'Enviada! Um adulto vai aprovar ⭐' : 'Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(refreshData, 700); })
         .catch(function (e) { c.done = false; el.classList.remove('done'); PK.toast(PK.writeErr(e)); });
       return;
     }

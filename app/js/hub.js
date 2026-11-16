@@ -253,6 +253,11 @@
     qr('qa-qr', C.baseUrl + '/tasks/' + encodeURIComponent(t.id), 90);
   }
 
+  // total da semana que o PlanKnect devolve ao marcar/desmarcar: passa a ser o placar dessa criança
+  function weekFrom(k, r) {
+    if (!k || !r || r.memberWeekPoints == null) return;
+    chores.scores = chores.scores || {}; chores.scores[k.id] = +r.memberWeekPoints || 0; k.weekLocal = 0; render();
+  }
   /* ---------- MISSÕES (com placar da semana) ---------- */
   function chores() {
     var kids = state.members.filter(function (m) { return m.kid; });
@@ -635,16 +640,17 @@
     if (a('data-chore')) {
       var c = state.chores.filter(function (x) { return x.id === a('data-chore'); })[0];
       if (c && PK.data.mode() === 'live') {
-        if (c.done) { // desmarcar no mesmo dia: segundo toque confirma
+        if (c.done && c.canUndo === false) PK.toast('Missão de hoje já feita ⭐');
+        else if (c.done) { // desmarcar no mesmo dia: segundo toque confirma
           if (undoChore !== c.id) { undoChore = c.id; setTimeout(function () { if (undoChore === c.id) undoChore = null; }, 4000); PK.toast('Missão feita ⭐ — toque de novo para desmarcar'); }
           else {
             undoChore = null; c.done = false; var ku = member(c.member); if (ku && ku.weekLocal) ku.weekLocal -= (+c.points || 0); render();
-            PK.data.setChore(c.id, false).then(function () { PK.toast('Missão desmarcada'); setTimeout(load, 700); })
+            PK.data.setChore(c.id, false).then(function (r) { weekFrom(ku, r); PK.toast('Missão desmarcada'); setTimeout(load, 700); })
               .catch(function (e) { c.done = true; if (ku) ku.weekLocal = (ku.weekLocal || 0) + (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
           }
         } else {
           c.done = true; choreDone[c.id] = Date.now(); setTimeout(render, 2600); var k = member(c.member); if (k) k.weekLocal = (k.weekLocal || 0) + (+c.points || 0); render();
-          PK.data.setChore(c.id, true).then(function () { PK.toast('Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(load, 700); })
+          PK.data.setChore(c.id, true).then(function (r) { weekFrom(k, r); PK.toast((r && /submit/.test(r.approvalStatus || '')) ? 'Enviada! Um adulto vai aprovar ⭐' : 'Muito bem! Missão feita ⭐' + (c.points ? ' +' + c.points : '')); setTimeout(load, 700); })
             .catch(function (e) { c.done = false; if (k) k.weekLocal -= (+c.points || 0); render(); PK.toast(PK.writeErr(e)); });
         }
       } else if (c) { c.done = !c.done; if (c.done) { choreDone[c.id] = Date.now(); setTimeout(render, 2600); } render(); write(PK.data.setChore(c.id, c.done), c.done ? 'Boa! Missão feita' : null); }

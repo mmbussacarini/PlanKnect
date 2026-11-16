@@ -1,6 +1,7 @@
 /* Dicionário do app: 'texto em português (como está no código)': ['English', 'Español'].
  * {nome} = parte variável (número, nome, hora…). Veja js/i18n.js. Ao criar texto novo na tela, acrescente aqui. */
 PK.i18n.add({
+  'Enviada! Um adulto vai aprovar ⭐': ['Sent! A grown-up will approve it ⭐', '¡Enviada! Un adulto la aprobará ⭐'],
   'Missão feita ⭐ — aperte OK de novo para desmarcar': ['Chore done ⭐ — press OK again to undo', 'Misión hecha ⭐ — pulsa OK otra vez para desmarcar'],
   'Missão feita ⭐ — toque de novo para desmarcar': ['Chore done ⭐ — tap again to undo', 'Misión hecha ⭐ — toca otra vez para desmarcar'],
   'Missão desmarcada': ['Chore unmarked', 'Misión desmarcada'],

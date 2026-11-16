@@ -323,6 +323,11 @@ PK.views = (function () {
     if (PK.data.mode() !== 'live' || !PK.api.choreScores) return;
     PK.api.choreScores().then(function (r) { scoresApi = { _ws: r.week_start }; (r.members || r.scores || []).forEach(function (m) { scoresApi[m.member || m.id] = m; }); if (cb) cb(); }).catch(function () { scoresApi = null; });
   }
+  // o PlanKnect devolve o total da semana da criança depois de marcar/desmarcar (memberWeekPoints)
+  function setWeekPoints(fm, pts) {
+    if (pts == null || !fm) return loadScores(function () { if (PK.app.refresh) PK.app.refresh(); });
+    scoresApi = scoresApi || {}; var m = scoresApi[fm] = scoresApi[fm] || { member: fm }; m.points = +pts || 0;
+  }
   function jar(k, sc, size) {
     var pct = Math.max(0, Math.min(1, sc.week / (sc.goal || 1))), H = 150, W = 120, top = 30, bot = 142, fillY = bot - (bot - top - 6) * pct;
     var n = Math.min(28, Math.round(pct * 28)), stars = '';
@@ -599,6 +604,6 @@ PK.views = (function () {
       }).join('') + (open.length ? '' : '<div class="empty">' + (real ? 'Nenhuma tarefa aberta neste projeto.<br><small>Abra “Detalhes do projeto” para ver marcos e equipe.</small>' : /^person:/.test(pid) ? 'Nada pendente no quadro pessoal.<br><small>Tarefas criadas no quadro pessoal dessa pessoa aparecem aqui.</small>' : 'Nada pendente aqui.') + '</div>');
   }
 
-  return { home: home, weather: weather, watch: watch, devices: devices, SERVICE: SERVICE, agenda: agenda, dayDetail: dayDetail, chores: chores, lists: lists, listPanel: listPanel,
+  return { setWeekPoints: setWeekPoints, home: home, weather: weather, watch: watch, devices: devices, SERVICE: SERVICE, agenda: agenda, dayDetail: dayDetail, chores: chores, lists: lists, listPanel: listPanel,
     work: work, prioPanel: prioPanel, tfModalBody: tfModalBody, TYPE: TYPE, title: title, av: av, projChip: projChip, statusLabel: statusLabel, taskRow: taskRow, PRIO: PRIO };
 })();
