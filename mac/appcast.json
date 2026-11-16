@@ -1,13 +1,16 @@
 {
-  "version": "1.2.1",
-  "build": 2026111609,
+  "version": "1.3",
+  "build": 2026111612,
   "date": "2026-11-16",
   "notes": [
-    "Painel do pipeline nos Deals: em aberto, ponderado pela temperatura, ganhos, ticket médio, valor por etapa, maiores deals e por empresa.",
-    "Correção: o detalhe do deal e da tarefa não se sobrepõem mais quando o painel lateral abre; a tela de Deals se ajeita à largura que sobra."
+    "Ajustes → \"Conectado ao PlanKnect\": veja tudo o que está ligado (e-mail, calendários, TVs, empresas, Spotify, Nest…) e conecte daqui",
+    "Conecte Gmail e Outlook / Microsoft 365 direto do app",
+    "Ligue uma caixa de e-mail a uma empresa e escolha quem vê e em quais projetos os e-mails entram",
+    "Conecte calendários Google/Outlook e Spotify sem sair do app",
+    "Veja e desconecte as telas e TVs aprovadas"
   ],
-  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2.1/PlanKnect-1.2.1.zip",
-  "sha256": "017ccfb2066d4b10833908ae8e526f8f7d6f7760f20c60512ab1ff4ff7934686",
-  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.2.1/PlanKnect-1.2.1.dmg",
+  "url": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.3/PlanKnect-1.3.zip",
+  "sha256": "7233c5a0b3098e896101b9a5ed7135f1f929381b7dacbff2c7d659b93e785fc9",
+  "dmg": "https://github.com/mmbussacarini/PlanKnect/releases/download/mac-v1.3/PlanKnect-1.3.dmg",
   "minimumSystem": "14.0"
 }
